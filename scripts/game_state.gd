@@ -1374,10 +1374,12 @@ func slot_info(slot: int) -> Dictionary:
 
 func slot_label(slot: int) -> String:
 	var m: Dictionary = slot_info(slot)
+	var head: String = Settings.t("slot") % slot
 	if m.is_empty():
-		return "Ô %d: (trống)" % slot
-	return "Ô %d: Ngày %d, %s · tiền %s · nợ còn %s · lưu lúc %s" % [slot, int(m.get("day", 1)), str(m.get("clock", "")),
-		fmt_money(int(m.get("money", 0))), fmt_money(int(m.get("debt", 0))), str(m.get("saved_at", ""))]
+		return "%s: (%s)" % [head, Settings.t("empty")]
+	return "%s: %s, %s · %s %s · %s %s · %s %s" % [head, Settings.t("day") % int(m.get("day", 1)), str(m.get("clock", "")),
+		Settings.t("money"), fmt_money(int(m.get("money", 0))), Settings.t("debt"), fmt_money(int(m.get("debt", 0))),
+		Settings.t("saved_at"), str(m.get("saved_at", "")).replace("T", " ")]
 
 
 ## Nạp dữ liệu từ ô lưu vào trạng thái hiện tại. Trả về phần "extra" (vị trí người chơi...).

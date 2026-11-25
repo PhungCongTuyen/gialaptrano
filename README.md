@@ -91,3 +91,10 @@ Mỗi ngày có 4–5 đụn rác hoặc đụn lá xuất hiện ngẫu nhiên 
 ## Kiểm tra tự động (không cần mở editor)
 Các kịch bản test nằm trong `tests/`. Chạy bằng Godot headless từ thư mục dự án, ví dụ:
 `godot --headless res://tests/run_test6.tscn` (kịch bản theo ngày), `run_test7` (giờ giấc, nửa đêm), `run_test5` (người đi đường).
+
+## Màn hình chính & tùy chọn
+- `scripts/title_menu.gd`: Bắt đầu / Tiếp tục (bảng 3 ô lưu: ngày, giờ, tiền, nợ, lúc lưu) / Tùy chọn / Thoát.
+  Nền là cảnh phố lúc chiều tà, camera trôi chậm.
+- `scripts/options_panel.gd`: ngôn ngữ (Tiếng Việt / English), độ nhạy chuột, âm lượng tổng / lời thoại / hiệu ứng.
+  Mở được cả từ menu tạm dừng (Esc). Cài đặt lưu ở `user://cai_dat.cfg` (autoload `Settings`, `scripts/settings.gd`).
+- Tiếng Anh hiện áp dụng cho giao diện menu; cốt truyện và lời thoại vẫn tiếng Việt.

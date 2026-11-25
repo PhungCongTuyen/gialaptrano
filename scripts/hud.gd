@@ -233,6 +233,7 @@ func _build() -> void:
 	root.add_child(fade_rect)
 
 	voice_player = AudioStreamPlayer.new()
+	voice_player.bus = "Voice"
 	add_child(voice_player)
 	if DisplayServer.has_feature(DisplayServer.FEATURE_TEXT_TO_SPEECH):
 		var vs: PackedStringArray = DisplayServer.tts_get_voices_for_language("vi")
@@ -789,7 +790,7 @@ func speak(speaker: String, text: String, vid: String = "") -> void:
 		for k in SPEAKER_PITCH.keys():
 			if speaker.begins_with(str(k)):
 				pitch = float(SPEAKER_PITCH[k])
-		DisplayServer.tts_speak(text, vi_voice, 80, pitch, 1.0)
+		DisplayServer.tts_speak(text, vi_voice, Settings.tts_volume(), pitch, 1.0)
 
 
 func is_speaking() -> bool:
@@ -811,6 +812,7 @@ func play_sfx(path: String) -> void:
 		return
 	var p: AudioStreamPlayer = AudioStreamPlayer.new()
 	p.stream = st
+	p.bus = "SFX"
 	add_child(p)
 	p.finished.connect(p.queue_free)
 	p.play()

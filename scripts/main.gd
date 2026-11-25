@@ -103,7 +103,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	player.locked = hud.menu_open or hud.fading or hud.inv_open or hud.live_open or digging
+	player.locked = hud.menu_open or hud.fading or hud.inv_open or hud.live_open or digging or title_menu != null
 	# tay phải cầm món đang chọn trên thanh đồ (khi đang ăn/uống thì giữ nguyên món đó)
 	if player.use_time < 0.0:
 		player.hold_item(GameState.selected_id() if game_live else "")
@@ -1467,46 +1467,117 @@ func _play_live(res: Dictionary, done: Callable) -> void:
 
 # ====================================================================== lưu / tải / menu
 
+const TitleMenu = preload("res://scripts/title_menu.gd")
+const OptionsPanel = preload("res://scripts/options_panel.gd")
+var title_menu: CanvasLayer = null
+var title_cam: Camera3D = null
+var _title_saved_min: float = -1.0
+
+
+## Màn hình vào game: cảnh phố chiều tà, camera trôi chậm dọc phố, menu bên trái.
 func _show_title() -> void:
 	hud.show_panels(false)
-	in_room = true
-	player.teleport(OFFICE_ORIGIN + Vector3(-3.0, 1.0, -1.2), 0.0)
-	hud.fade_from_black(1.0)
-	var any: bool = false
-	for i in range(1, GameState.SAVE_SLOTS + 1):
-		if not GameState.slot_info(i).is_empty():
-			any = true
-	hud.show_menu("NỢ 60 NGÀY", "Bị AI cướp việc, nợ 100 triệu, 60 ngày để trả.", [
-		{"label": "Chơi mới", "cb": func(): hud.transition(_show_intro, 0.8)},
-		{"label": "Tải game", "disabled": not any, "cb": _menu_load.bind(_show_title)},
-		{"label": "Thoát", "cb": _quit}])
+	hud.hide_menu()
+	in_room = false
+	game_live = false
+	_title_saved_min = GameState.minutes
+	GameState.minutes = 17.0 * 60.0 + 20.0   # nắng chiều
+	_apply_time()
+	_update_world_force()
+	title_cam = Camera3D.new()
+	title_cam.fov = 62
+	add_child(title_cam)
+	title_cam.current = true
+	var base: Vector3 = _m(150, 280)
+	var p0: Vector3 = base + Vector3(4.2, 1.75, 18.0)
+	var p1: Vector3 = base + Vector3(3.2, 1.65, 5.0)
+	title_cam.global_position = p0
+	title_cam.look_at(base + Vector3(-0.5, 3.0, -8.0))
+	var tw: Tween = create_tween().set_loops()
+	tw.tween_property(title_cam, "global_position", p1, 38.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property(title_cam, "global_position", p0, 38.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	title_cam.set_meta("tw", tw)
+	hud.fade_from_black(1.2)
+	title_menu = TitleMenu.new()
+	add_child(title_menu)
+	title_menu.start_game.connect(_title_start)
+	title_menu.load_slot.connect(func(i: int): _close_title(); _load_from(i))
+	title_menu.quit_game.connect(_quit)
+
+
+func _close_title() -> void:
+	if is_instance_valid(title_menu):
+		title_menu.dismiss()
+	title_menu = null
+
+
+func _end_title_cam() -> void:
+	if is_instance_valid(title_cam):
+		var tw: Tween = title_cam.get_meta("tw") as Tween
+		if tw != null:
+			tw.kill()
+		title_cam.queue_free()
+	title_cam = null
+	if _title_saved_min >= 0.0:
+		GameState.minutes = _title_saved_min
+		_title_saved_min = -1.0
+		_apply_time()
+
+
+func _title_start() -> void:
+	_close_title()
+	hud.transition(func():
+		_end_title_cam()
+		_show_intro(), 0.8)
 
 
 func _menu_pause() -> void:
-	if GameState.finished:
+	if GameState.finished or title_menu != null:
 		return
-	hud.show_menu("TẠM DỪNG", "Ngày %d · %s. Chỉ lưu được khi đang chơi tự do (không trong đoạn cắt cảnh)." % [GameState.day, GameState.clock_str()], [
-		{"label": "Tiếp tục", "cb": _noop},
-		{"label": "Lưu game", "disabled": not game_live, "cb": _menu_save},
-		{"label": "Tải game", "cb": _menu_load.bind(_menu_pause)},
-		{"label": "Về màn hình chính", "cb": _to_title},
-		{"label": "Thoát game", "cb": _quit}])
+	var T: Callable = Settings.t
+	hud.show_menu(T.call("paused"), T.call("paused_body") % [GameState.day, GameState.clock_str()], [
+		{"label": T.call("resume"), "cb": _noop},
+		{"label": T.call("save"), "disabled": not game_live, "cb": _menu_save},
+		{"label": T.call("load"), "cb": _menu_load.bind(_menu_pause)},
+		{"label": T.call("options"), "cb": _pause_options},
+		{"label": T.call("to_title"), "cb": _to_title},
+		{"label": T.call("quit_game"), "cb": _quit}])
+
+
+## Tùy chọn mở từ menu tạm dừng; đóng thì quay lại menu tạm dừng.
+func _pause_options() -> void:
+	hud.hide_menu()
+	var layer: CanvasLayer = CanvasLayer.new()
+	layer.layer = 30
+	add_child(layer)
+	var dim: ColorRect = ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.55)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(dim)
+	var p: PanelContainer = OptionsPanel.new()
+	layer.add_child(p)
+	p.position = Vector2(330, 110)
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	player.locked = true
+	p.closed.connect(func():
+		layer.queue_free()
+		_menu_pause())
 
 
 func _menu_save() -> void:
 	var opts: Array = []
 	for i in range(1, GameState.SAVE_SLOTS + 1):
 		opts.append({"label": GameState.slot_label(i), "cb": _save_to.bind(i)})
-	opts.append({"label": "Quay lại", "cb": _menu_pause})
-	hud.show_menu("LƯU GAME", "Chọn ô để lưu (ô đã có sẽ bị ghi đè):", opts)
+	opts.append({"label": Settings.t("back"), "cb": _menu_pause})
+	hud.show_menu(Settings.t("save_title"), Settings.t("save_body"), opts)
 
 
 func _save_to(slot: int) -> void:
 	var extra: Dictionary = {"in_room": in_room, "pos": [player.global_position.x, player.global_position.y, player.global_position.z], "yaw": player.rotation.y}
 	if GameState.save_game(slot, extra):
-		hud.toast("Đã lưu vào ô %d" % slot, 2.5)
+		hud.toast(Settings.t("saved_ok") % slot, 2.5)
 	else:
-		hud.toast("Không lưu được!", 2.5)
+		hud.toast(Settings.t("saved_fail"), 2.5)
 
 
 func _menu_load(back: Callable) -> void:
@@ -1514,8 +1585,8 @@ func _menu_load(back: Callable) -> void:
 	for i in range(1, GameState.SAVE_SLOTS + 1):
 		var empty: bool = GameState.slot_info(i).is_empty()
 		opts.append({"label": GameState.slot_label(i), "disabled": empty, "cb": _load_from.bind(i)})
-	opts.append({"label": "Quay lại", "cb": back})
-	hud.show_menu("TẢI GAME", "Chọn bản lưu:", opts)
+	opts.append({"label": Settings.t("back"), "cb": back})
+	hud.show_menu(Settings.t("load_title"), Settings.t("load_body"), opts)
 
 
 func _load_from(slot: int) -> void:
