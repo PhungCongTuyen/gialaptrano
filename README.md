@@ -98,3 +98,10 @@ Các kịch bản test nằm trong `tests/`. Chạy bằng Godot headless từ t
 - `scripts/options_panel.gd`: ngôn ngữ (Tiếng Việt / English), độ nhạy chuột, âm lượng tổng / lời thoại / hiệu ứng.
   Mở được cả từ menu tạm dừng (Esc). Cài đặt lưu ở `user://cai_dat.cfg` (autoload `Settings`, `scripts/settings.gd`).
 - Tiếng Anh hiện áp dụng cho giao diện menu; cốt truyện và lời thoại vẫn tiếng Việt.
+
+## Thoại kiểu phụ đề
+- Câu thoại một mạch hiện như phụ đề phim ở mép dưới màn hình (chữ trắng viền đen, tên người nói màu vàng),
+  không có nền che cảnh. Đọc xong tự chuyển câu; `[Space]` để bỏ qua (gợi ý ở góc dưới phải).
+- Câu nào cũng có tiếng: ưu tiên file `voice/<mã câu>.ogg|wav|mp3`, không có thì dùng giọng đọc máy (TTS).
+  Trên Windows cần cài giọng tiếng Việt: Settings > Time & Language > Speech > Add voices > Tiếng Việt.
+- Câu có lựa chọn: các lựa chọn hiện dạng chữ có viền ngay trên phụ đề, chọn bằng chuột hoặc phím số.

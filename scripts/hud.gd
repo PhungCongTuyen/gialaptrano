@@ -166,47 +166,49 @@ func _build() -> void:
 	panel = PanelContainer.new()
 	panel.visible = false
 	panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	panel.custom_minimum_size = Vector2(980, 0)
-	var sb: StyleBoxFlat = StyleBoxFlat.new()
-	sb.bg_color = Color(0.04, 0.04, 0.06, 0.82)
-	sb.border_color = Color(1, 0.85, 0.4, 0.5)
-	sb.border_width_top = 2
-	sb.set_corner_radius_all(8)
-	panel.add_theme_stylebox_override("panel", sb)
+	panel.custom_minimum_size = Vector2(1040, 0)
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_theme_stylebox_override("panel", StyleBoxEmpty.new())   # không nền: không che cảnh game
 	bottom.add_child(panel)
 
 	var mc: MarginContainer = MarginContainer.new()
 	for side in ["left", "top", "right", "bottom"]:
-		mc.add_theme_constant_override("margin_" + side, 18)
+		mc.add_theme_constant_override("margin_" + side, 10)
+	mc.add_theme_constant_override("margin_bottom", 26)
+	mc.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(mc)
 
 	var vb: VBoxContainer = VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 10)
+	vb.add_theme_constant_override("separation", 6)
+	vb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	mc.add_child(vb)
 
-	title_label = Label.new()
-	title_label.add_theme_font_size_override("font_size", 22)
-	title_label.add_theme_color_override("font_color", Color(1, 0.85, 0.4))
-	title_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	title_label.custom_minimum_size = Vector2(940, 0)
+	# lựa chọn nằm trên phụ đề
+	options_box = VBoxContainer.new()
+	options_box.add_theme_constant_override("separation", 2)
+	options_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	vb.add_child(options_box)
+
+	title_label = _sub_label(21, Color(1, 0.84, 0.35))
 	vb.add_child(title_label)
 
-	body_label = Label.new()
-	body_label.add_theme_font_size_override("font_size", 20)
-	body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body_label.custom_minimum_size = Vector2(940, 0)
+	body_label = _sub_label(25, Color(1, 1, 1))
 	vb.add_child(body_label)
 
-	skip_label = Label.new()
-	skip_label.add_theme_font_size_override("font_size", 14)
-	skip_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	# gợi ý bỏ qua ở góc dưới phải màn hình
+	skip_label = _make_label(17)
+	skip_label.add_theme_color_override("font_color", Color(0.92, 0.92, 0.92, 0.85))
+	skip_label.anchor_left = 1.0
+	skip_label.anchor_right = 1.0
+	skip_label.anchor_top = 1.0
+	skip_label.anchor_bottom = 1.0
+	skip_label.offset_left = -260
+	skip_label.offset_right = -28
+	skip_label.offset_top = -46
+	skip_label.offset_bottom = -18
 	skip_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	skip_label.text = "Space / click: bỏ qua"
-	vb.add_child(skip_label)
-
-	options_box = VBoxContainer.new()
-	options_box.add_theme_constant_override("separation", 6)
-	vb.add_child(options_box)
+	skip_label.visible = false
+	root.add_child(skip_label)
 
 	_build_hotbar(root)
 	_build_inventory(root)
@@ -667,6 +669,43 @@ func set_objective(text: String) -> void:
 	objective_label.text = ("► " + text) if text != "" else ""
 
 
+func _sub_label(size: int, col: Color) -> Label:
+	var l: Label = Label.new()
+	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_color_override("font_color", col)
+	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.95))
+	l.add_theme_constant_override("outline_size", 7)
+	l.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.6))
+	l.add_theme_constant_override("shadow_offset_x", 2)
+	l.add_theme_constant_override("shadow_offset_y", 2)
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.custom_minimum_size = Vector2(1020, 0)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return l
+
+
+func _option_button(text: String) -> Button:
+	var b: Button = Button.new()
+	b.text = text
+	b.flat = true
+	b.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	b.focus_mode = Control.FOCUS_ALL
+	b.add_theme_font_size_override("font_size", 22)
+	b.add_theme_color_override("font_color", Color(0.95, 0.95, 0.95))
+	b.add_theme_color_override("font_hover_color", Color(1, 0.84, 0.35))
+	b.add_theme_color_override("font_focus_color", Color(1, 0.84, 0.35))
+	b.add_theme_color_override("font_pressed_color", Color(1, 0.92, 0.6))
+	b.add_theme_color_override("font_disabled_color", Color(0.7, 0.7, 0.7, 0.55))
+	b.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.95))
+	b.add_theme_constant_override("outline_size", 6)
+	var e: StyleBoxEmpty = StyleBoxEmpty.new()
+	for st in ["normal", "hover", "pressed", "disabled", "focus"]:
+		b.add_theme_stylebox_override(st, e)
+	b.mouse_entered.connect(func(): if not b.disabled: b.grab_focus())
+	return b
+
+
 func show_panels(v: bool) -> void:
 	hotbar_box.visible = v
 	held_label.visible = v
@@ -691,27 +730,31 @@ func show_menu(title: String, body: String, options: Array, voice_text: String =
 	for c in options_box.get_children():
 		options_box.remove_child(c)
 		c.queue_free()
-	var i: int = 1
-	for o in options:
-		var opt: Dictionary = o
-		var b: Button = Button.new()
-		b.text = "%d.  %s" % [i, str(opt.get("label", "OK"))]
-		b.disabled = bool(opt.get("disabled", false))
-		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		b.add_theme_font_size_override("font_size", 18)
-		var cb: Callable = opt.get("cb", Callable())
-		b.pressed.connect(_choose.bind(cb))
-		options_box.add_child(b)
-		i += 1
+	# Câu thoại một mạch (chỉ có nút "Tiếp tục"): hiện như phụ đề, đọc xong tự chuyển, Space để bỏ qua.
+	sub_mode = options.size() == 1 and str(options[0].get("label", "")) in ["Tiếp tục", "Continue", "OK"]
+	sub_next = options[0].get("cb", Callable()) if sub_mode else Callable()
+	sub_hold = -1.0
+	if not sub_mode:
+		var i: int = 1
+		for o in options:
+			var opt: Dictionary = o
+			var b: Button = _option_button("%d.  %s" % [i, str(opt.get("label", "OK"))])
+			b.disabled = bool(opt.get("disabled", false))
+			var cb: Callable = opt.get("cb", Callable())
+			b.pressed.connect(_choose.bind(cb))
+			options_box.add_child(b)
+			i += 1
 	panel.visible = true
 	menu_open = true
 	hotbar_box.visible = false
 	held_label.visible = false
 	prompt_label.text = ""
 	log_label.visible = false
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if not sub_mode:
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	# Chạy chữ
 	options_box.visible = false
+	skip_label.text = Settings.t("skip_hint")
 	skip_label.visible = true
 	revealed = false
 	typing_done = false
@@ -723,7 +766,26 @@ func show_menu(title: String, body: String, options: Array, voice_text: String =
 	type_tween = create_tween()
 	type_tween.tween_property(body_label, "visible_ratio", 1.0, dur)
 	type_tween.tween_callback(_on_typed)
-	speak(title, voice_text, vid)
+	# câu nào cũng có tiếng: không truyền câu đọc riêng thì đọc chính nội dung
+	var say: String = voice_text if voice_text != "" else body
+	sub_voiced = speak(title, say, vid)
+
+
+var sub_mode: bool = false
+var sub_next: Callable = Callable()
+var sub_hold: float = -1.0
+var sub_voiced: bool = false
+
+
+## Chuyển sang câu tiếp (phụ đề).
+func _sub_advance() -> void:
+	var cb: Callable = sub_next
+	sub_mode = false
+	sub_next = Callable()
+	skip_label.visible = false
+	hide_menu()
+	if cb.is_valid():
+		cb.call()
 
 
 func _on_typed() -> void:
@@ -733,6 +795,17 @@ func _on_typed() -> void:
 func _process(_d: float) -> void:
 	if live_open:
 		_live_process(_d)
+	if menu_open and sub_mode and not fading:
+		if typing_done and not is_speaking():
+			if sub_hold < 0.0:
+				# đọc xong: giữ phụ đề thêm chút; không có giọng thì giữ theo độ dài câu
+				var n: float = float(body_label.text.length())
+				sub_hold = 0.6 if sub_voiced else clampf(n * 0.055, 1.8, 7.0)
+			else:
+				sub_hold -= _d
+				if sub_hold <= 0.0:
+					_sub_advance()
+		return
 	if menu_open and not revealed and typing_done and not is_speaking():
 		_reveal()
 
@@ -745,6 +818,7 @@ func _reveal() -> void:
 	revealed = true
 	skip_label.visible = false
 	options_box.visible = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	for c in options_box.get_children():
 		var b: Button = c as Button
 		if b != null and not b.disabled:
@@ -762,6 +836,8 @@ func _choose(cb: Callable) -> void:
 
 func hide_menu() -> void:
 	stop_voice()
+	sub_mode = false
+	skip_label.visible = false
 	panel.visible = false
 	menu_open = false
 	hotbar_box.visible = stats_label.visible
@@ -772,10 +848,10 @@ func hide_menu() -> void:
 
 # ---------------------------------------------------------------- giọng nói
 
-func speak(speaker: String, text: String, vid: String = "") -> void:
+func speak(speaker: String, text: String, vid: String = "") -> bool:
 	stop_voice()
 	if not voice_on or text == "":
-		return
+		return false
 	if vid != "":
 		for ext in ["ogg", "wav", "mp3"]:
 			var p: String = "res://voice/%s.%s" % [vid, ext]
@@ -784,13 +860,23 @@ func speak(speaker: String, text: String, vid: String = "") -> void:
 				if st != null:
 					voice_player.stream = st
 					voice_player.play()
-					return
+					return true
 	if vi_voice != "":
 		var pitch: float = 1.0
 		for k in SPEAKER_PITCH.keys():
 			if speaker.begins_with(str(k)):
 				pitch = float(SPEAKER_PITCH[k])
-		DisplayServer.tts_speak(text, vi_voice, Settings.tts_volume(), pitch, 1.0)
+		DisplayServer.tts_speak(_speakable(text), vi_voice, Settings.tts_volume(), pitch, 1.0)
+		return true
+	return false
+
+
+## Bỏ ký hiệu khó đọc trước khi đưa cho giọng đọc máy.
+func _speakable(t: String) -> String:
+	var out: String = t.replace("·", ",").replace("…", "...").replace("\n", ". ")
+	for ch in ["*", "#", "[", "]", "→", "—"]:
+		out = out.replace(ch, " ")
+	return out
 
 
 func is_speaking() -> bool:
@@ -902,12 +988,17 @@ func _input(event: InputEvent) -> void:
 		return
 	if not menu_open or fading:
 		return
+	if sub_mode:
+		var sk: bool = event is InputEventKey and event.pressed and not event.echo and event.physical_keycode in [KEY_SPACE, KEY_ENTER]
+		if sk:
+			stop_voice()
+			_sub_advance()
+			get_viewport().set_input_as_handled()
+		return
 	if not revealed:
 		var skip: bool = false
 		if event is InputEventKey and event.pressed and not event.echo:
-			skip = event.physical_keycode in [KEY_SPACE, KEY_ENTER, KEY_E]
-		elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-			skip = true
+			skip = event.physical_keycode in [KEY_SPACE, KEY_ENTER]
 		if skip:
 			if typing_done:
 				stop_voice()

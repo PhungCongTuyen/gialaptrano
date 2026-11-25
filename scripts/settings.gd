@@ -115,6 +115,7 @@ const TEXT: Dictionary = {
 	"load_body": ["Chọn bản lưu:", "Choose a save:"],
 	"saved_ok": ["Đã lưu vào ô %d", "Saved to slot %d"],
 	"saved_fail": ["Không lưu được!", "Could not save!"],
+	"skip_hint": ["[Space]  Bỏ qua", "[Space]  Skip"],
 	"hint_menu": ["Chuột hoặc phím ↑ ↓ · Enter để chọn · Esc để quay lại", "Mouse or ↑ ↓ · Enter to select · Esc to go back"],
 }
 
