@@ -523,32 +523,70 @@ func build_stools(center: Vector3, yaw: float) -> void:
 				cyl(r, 0.14, 0.17, 0.28, sp + Vector3(0, 0.14, 0), mat(sc, 0.5))
 
 
+const TREE_MODELS: Array = ["res://models/cay/cay_1.glb", "res://models/cay/cay_2.glb", "res://models/cay/cay_3.glb"]
+var _tree_leaf_mat: ShaderMaterial
+var _tree_bark_mat: StandardMaterial3D
+
+
+## Cây xanh đường phố dựng bằng Blender (models/cay): thân thẳng ~3 m, tán vòm lá kép lông chim.
+## Thiếu file thì dựng cây khối đơn giản như cũ.
+func _place_tree_model(r: Node3D) -> bool:
+	var path: String = TREE_MODELS[rng.randi_range(0, TREE_MODELS.size() - 1)]
+	if not ResourceLoader.exists(path):
+		return false
+	if _tree_leaf_mat == null:
+		_tree_leaf_mat = ShaderMaterial.new()
+		_tree_leaf_mat.shader = load("res://shaders/la_cay.gdshader")
+		_tree_leaf_mat.set_shader_parameter("albedo_tex", load("res://textures/cay/la_cay_atlas.png"))
+		_tree_bark_mat = StandardMaterial3D.new()
+		_tree_bark_mat.albedo_texture = load("res://textures/cay/vo_cay.png")
+		_tree_bark_mat.normal_enabled = true
+		_tree_bark_mat.normal_texture = load("res://textures/cay/vo_cay_normal.png")
+		_tree_bark_mat.roughness = 0.95
+		_tree_bark_mat.albedo_color = Color(0.95, 0.92, 0.88)
+	var n: Node3D = (load(path) as PackedScene).instantiate()
+	n.rotation.y = rng.randf() * TAU
+	n.scale = Vector3.ONE * rng.randf_range(0.74, 0.88)  # phố hẹp: tán ~6-7 m để bớt chạm tường nhà
+	r.add_child(n)
+	for mi in n.find_children("*", "MeshInstance3D", true, false):
+		var m: MeshInstance3D = mi
+		for i in m.mesh.get_surface_count():
+			var sm: Material = m.mesh.surface_get_material(i)
+			var nm: String = sm.resource_name.to_lower() if sm != null else ""
+			if nm.begins_with("la"):
+				m.set_surface_override_material(i, _tree_leaf_mat)
+			else:
+				m.set_surface_override_material(i, _tree_bark_mat)
+	return true
+
+
 func build_tree(pos: Vector3) -> void:
 	var r: Node3D = Node3D.new()
 	r.position = pos
 	add_child(r)
-	var h: float = rng.randf_range(3.5, 5.5)
-	cyl(r, 0.12, 0.18, h, Vector3(0, h / 2.0, 0), mat(Color(0.4, 0.3, 0.2)))
-	cyl(r, 0.3, 0.3, 0.3, Vector3(0, 0.15, 0), mat(Color(0.6, 0.6, 0.58)))  # bồn gốc cây
-	for k in 3:
-		var leaf: MeshInstance3D = MeshInstance3D.new()
-		var sp: SphereMesh = SphereMesh.new()
-		var rad: float = rng.randf_range(1.0, 1.5)
-		sp.radius = rad
-		sp.height = rad * 1.6
-		sp.radial_segments = 10
-		sp.rings = 6
-		leaf.mesh = sp
-		leaf.material_override = mat(Color(0.2 + rng.randf() * 0.1, 0.45 + rng.randf() * 0.15, 0.2))
-		leaf.position = Vector3(rng.randf_range(-0.6, 0.6), h + rng.randf_range(-0.3, 0.5), rng.randf_range(-0.6, 0.6))
-		r.add_child(leaf)
+	cyl(r, 0.42, 0.42, 0.08, Vector3(0, 0.04, 0), mat(Color(0.55, 0.55, 0.52)))  # bồn gốc cây
+	if not _place_tree_model(r):
+		var h: float = rng.randf_range(3.5, 5.5)
+		cyl(r, 0.12, 0.18, h, Vector3(0, h / 2.0, 0), mat(Color(0.4, 0.3, 0.2)))
+		for k in 3:
+			var leaf: MeshInstance3D = MeshInstance3D.new()
+			var sp: SphereMesh = SphereMesh.new()
+			var rad: float = rng.randf_range(1.0, 1.5)
+			sp.radius = rad
+			sp.height = rad * 1.6
+			sp.radial_segments = 10
+			sp.rings = 6
+			leaf.mesh = sp
+			leaf.material_override = mat(Color(0.2 + rng.randf() * 0.1, 0.45 + rng.randf() * 0.15, 0.2))
+			leaf.position = Vector3(rng.randf_range(-0.6, 0.6), h + rng.randf_range(-0.3, 0.5), rng.randf_range(-0.6, 0.6))
+			r.add_child(leaf)
 	var b: StaticBody3D = StaticBody3D.new()
 	var cs: CollisionShape3D = CollisionShape3D.new()
 	var sh: CylinderShape3D = CylinderShape3D.new()
-	sh.radius = 0.3
-	sh.height = 2.0
+	sh.radius = 0.24
+	sh.height = 3.0
 	cs.shape = sh
-	cs.position = Vector3(0, 1.0, 0)
+	cs.position = Vector3(0, 1.5, 0)
 	b.add_child(cs)
 	r.add_child(b)
 

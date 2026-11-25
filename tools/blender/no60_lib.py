@@ -20,9 +20,11 @@ def _smooth_normals(me, angle_deg):
 
 
 def write_glb(path, parts):
-    """parts: list of (object, smooth_angle_deg). Mỗi vật liệu -> 1 primitive. Toạ độ Blender Z-up -> glTF Y-up."""
+    """parts: list of (object, smooth_angle_deg[, tâm_tán]). Mỗi vật liệu -> 1 primitive. Toạ độ Blender Z-up -> glTF Y-up."""
     prims = {}   # mat_name -> dict(pos, nor, idx, mat)
-    for ob, ang in parts:
+    for part in parts:
+        ob, ang = part[0], part[1]
+        sph = part[2] if len(part) > 2 else None   # tâm tán: pháp tuyến hướng ra ngoài tán (lá cây)
         dg = _dg(ob)
         oe = ob.evaluated_get(dg)
         me = oe.to_mesh()
@@ -49,6 +51,10 @@ def write_glb(path, parts):
                     if pn[f].dot(fn) >= cos_lim:
                         acc += pn[f] * max(pa[f], 1e-10)
                 n = acc.normalized() if acc.length > 0 else fn
+                if sph is not None:
+                    radial = (me.vertices[vi].co - Vector(sph))
+                    radial = radial.normalized() if radial.length > 1e-6 else Vector((0, 0, 1))
+                    n = (fn * 0.25 + radial * 0.75).normalized()
                 key = (vi, round(n.x, 3), round(n.y, 3), round(n.z, 3), round(u0[0], 5), round(u0[1], 5), round(u1[0], 4), round(u1[1], 4))
                 if key not in vmap:
                     v = mw @ me.vertices[vi].co
@@ -598,3 +604,158 @@ def vr_sleeve(sc, sleeve_mat):
     loft(bm2, [(Vector((0, -0.30, 0.004)), 0.052, 0.045), (Vector((0, -0.32, 0.004)), 0.055, 0.048),
                (Vector((0, -0.43, 0.004)), 0.058, 0.05), (Vector((0, -0.57, 0.004)), 0.06, 0.052)], seg=20)
     return obj_from_bm(sc, "vr_ao", bm2, sleeve_mat)
+
+
+# ---------------------------------------------------------------- cây xanh đường phố (thân thẳng, tán vòm, lá kép lông chim)
+# Vật liệu: "VoCay" (vỏ, UV cuộn quanh thân) và "LaCay" (thẻ lá có alpha, atlas 3 biến thể theo chiều ngang).
+# Màu đỉnh của lá: RGB = độ sáng (trong tán tối, ngoài tán sáng), A = mức đung đưa theo gió (gốc 0 -> ngọn 1).
+def _frames(pts):
+    """khung song song dọc đường cong: trả về list (tangent, n1, n2)"""
+    out = []
+    t0 = (pts[1] - pts[0]).normalized()
+    up = Vector((0, 0, 1)) if abs(t0.z) < 0.95 else Vector((1, 0, 0))
+    n1 = t0.cross(up).normalized()
+    for i in range(len(pts)):
+        if i == 0:
+            t = t0
+        elif i == len(pts) - 1:
+            t = (pts[i] - pts[i - 1]).normalized()
+        else:
+            t = (pts[i + 1] - pts[i - 1]).normalized()
+        n1 = (n1 - t * n1.dot(t)).normalized()
+        out.append((t, n1, t.cross(n1).normalized()))
+    return out
+
+
+def tube(bm, uvl, pts, radii, seg=8, v_scale=1.2, u_rep=2.0):
+    fr = _frames(pts)
+    rows = []
+    vlen = [0.0]
+    for i in range(1, len(pts)):
+        vlen.append(vlen[-1] + (pts[i] - pts[i - 1]).length)
+    for i, p in enumerate(pts):
+        t, a, b = fr[i]
+        rows.append([bm.verts.new(p + (a * math.cos(2 * math.pi * k / seg) + b * math.sin(2 * math.pi * k / seg)) * radii[i]) for k in range(seg)])
+    for i in range(len(rows) - 1):
+        for k in range(seg):
+            f = bm.faces.new([rows[i][k], rows[i][(k + 1) % seg], rows[i + 1][(k + 1) % seg], rows[i + 1][k]])
+            for l, (kk, ii) in zip(f.loops, [(k, i), (k + 1, i), (k + 1, i + 1), (k, i + 1)]):
+                l[uvl].uv = (u_rep * kk / seg, vlen[ii] / v_scale)
+    tip = bm.verts.new(pts[-1] + fr[-1][0] * radii[-1] * 0.6)
+    for k in range(seg):
+        f = bm.faces.new([rows[-1][k], rows[-1][(k + 1) % seg], tip])
+        for l in f.loops:
+            l[uvl].uv = (0.0, vlen[-1] / v_scale)
+
+
+def _curve(rng, start, direction, length, n, bend_to, bend, wiggle):
+    pts = [start.copy()]
+    d = direction.normalized()
+    step = length / (n - 1)
+    for i in range(1, n):
+        d = (d + bend_to * bend / n + Vector((rng.uniform(-1, 1), rng.uniform(-1, 1), rng.uniform(-1, 1))) * wiggle).normalized()
+        pts.append(pts[-1] + d * step)
+    return pts
+
+
+def _rot_about(v, axis, ang):
+    return (Matrix.Rotation(ang, 3, axis) @ v).normalized()
+
+
+def build_tree_cay(sc, name, seed, bark_mat, leaf_mat, n_fill=2300):
+    import random
+    rng = random.Random(seed)
+    bm_b = bmesh.new(); uvb = bm_b.loops.layers.uv.new("UVMap")
+    bm_l = bmesh.new(); uvf = bm_l.loops.layers.uv.new("UVMap")
+    col_l = bm_l.verts.layers.float_color.new("Col")
+    # thân thẳng, phân cành ở ~3 m
+    H0 = rng.uniform(2.9, 3.4)
+    lean = Vector((rng.uniform(-0.06, 0.06), rng.uniform(-0.06, 0.06), 1.0))
+    trunk = _curve(rng, Vector((0, 0, -0.05)), lean, H0, 9, Vector((0, 0, 1)), 0.0, 0.015)
+    tube(bm_b, uvb, trunk, [0.25, 0.2, 0.175, 0.17, 0.165, 0.16, 0.155, 0.15, 0.14], seg=14)
+    top = trunk[-1]
+    # tán vòm (elip)
+    RX = rng.uniform(3.4, 4.1); RZ = rng.uniform(2.5, 3.0)
+    C = top + Vector((rng.uniform(-0.2, 0.2), rng.uniform(-0.2, 0.2), RZ * 0.95))
+    tips = []
+    n_main = rng.randint(4, 6)
+    az0 = rng.uniform(0, 2 * math.pi)
+    for m in range(n_main):
+        az = az0 + 2 * math.pi * m / n_main + rng.uniform(-0.25, 0.25)
+        el = math.radians(rng.uniform(16, 34) if m else rng.uniform(3, 10))
+        d = Vector((math.cos(az) * math.sin(el), math.sin(az) * math.sin(el), math.cos(el)))
+        start = trunk[-2].lerp(top, rng.uniform(0.2, 1.0))
+        L = rng.uniform(3.4, 4.6)
+        main = _curve(rng, start, d, L, 9, Vector((math.cos(az), math.sin(az), 0.0)), 0.9, 0.05)
+        tube(bm_b, uvb, main, [0.12 - 0.085 * i / 8 for i in range(9)], seg=10)
+        mf = _frames(main)
+        for s_ in range(rng.randint(5, 7)):
+            t = rng.uniform(0.3, 0.95); i = min(int(t * 8), 7)
+            p = main[i].lerp(main[i + 1], t * 8 - i)
+            tang = mf[i][0]
+            sd = _rot_about(tang, mf[i][1], math.radians(rng.uniform(25, 55)))
+            sd = _rot_about(sd, tang, rng.uniform(0, 2 * math.pi))
+            if sd.z < 0.0:
+                sd.z = abs(sd.z) * 0.5; sd.normalize()
+            L2 = rng.uniform(1.4, 2.4) * (1.2 - t * 0.45)
+            sec = _curve(rng, p, sd, L2, 6, (p - C).normalized(), 0.6, 0.08)
+            r0 = 0.045 * (1.2 - t * 0.5)
+            tube(bm_b, uvb, sec, [r0 - (r0 - 0.012) * k / 5 for k in range(6)], seg=6)
+            sf = _frames(sec)
+            for q in range(rng.randint(3, 5)):
+                t2 = rng.uniform(0.25, 1.0); j = min(int(t2 * 5), 4)
+                p2 = sec[j].lerp(sec[j + 1], t2 * 5 - j)
+                td = _rot_about(sf[j][0], sf[j][1], math.radians(rng.uniform(25, 60)))
+                td = _rot_about(td, sf[j][0], rng.uniform(0, 2 * math.pi))
+                tw = _curve(rng, p2, td, rng.uniform(0.5, 1.0), 4, Vector((0, 0, -1)), 0.4, 0.1)
+                tube(bm_b, uvb, tw, [0.012, 0.009, 0.007, 0.005], seg=5)
+                tips.append(tw[-1])
+    # điểm gắn lá: lấp đầy vỏ tán vòm (dày ở mặt ngoài), đáy tán bằng phẳng hơn
+    spots = []
+    while len(spots) < n_fill:
+        v = Vector((rng.uniform(-1, 1), rng.uniform(-1, 1), rng.uniform(-1, 1)))
+        r = v.length
+        if r > 1.0 or r < 0.5:
+            continue
+        if v.z < -0.55:
+            continue
+        if rng.random() > (r - 0.45) * 1.6:
+            continue
+        p = C + Vector((v.x * RX, v.y * RX, v.z * RZ))
+        spots.append((p, r))
+    for p in tips:
+        q = p - C
+        r = math.sqrt((q.x / RX) ** 2 + (q.y / RX) ** 2 + (q.z / RZ) ** 2)
+        for k in range(3):
+            spots.append((p + Vector((rng.uniform(-.2, .2), rng.uniform(-.2, .2), rng.uniform(-.2, .1))), min(r, 1.0)))
+    for p, r in spots:
+        out = Vector(((p - C).x / RX, (p - C).y / RX, (p - C).z / RZ))
+        out = out.normalized() if out.length > 1e-4 else Vector((0, 0, 1))
+        d = (out * 0.75 + Vector((0, 0, -rng.uniform(0.35, 1.0)))).normalized()
+        d = _rot_about(d, Vector((0, 0, 1)), rng.uniform(-0.9, 0.9))
+        side = d.cross(Vector((0, 0, 1)))
+        side = side.normalized() if side.length > 1e-4 else Vector((1, 0, 0))
+        side = _rot_about(side, d, rng.uniform(-0.6, 0.6))
+        nrm = side.cross(d).normalized()
+        if nrm.z < 0:
+            nrm = -nrm
+        L = rng.uniform(0.5, 0.78); W = L * 0.5
+        top_zone = out.z > 0.55
+        var = rng.choices([0, 1, 2], weights=[0.5, 0.35, 0.15 + (0.25 if top_zone else 0.0)])[0]
+        u0, u1 = var / 3.0, (var + 1) / 3.0
+        sag = rng.uniform(0.05, 0.14)
+        bright = (0.5 + 0.6 * max(0.0, r - 0.45) / 0.55 + (0.12 if out.z > 0.3 else 0.0)) * rng.uniform(0.9, 1.08)
+        rows = []
+        for s_ in range(4):
+            t = s_ / 3.0
+            c = p + d * L * t - nrm * sag * t * t
+            rows.append([bm_l.verts.new(c - side * W * 0.5), bm_l.verts.new(c + side * W * 0.5)])
+            for v in rows[-1]:
+                v[col_l] = (bright, bright, bright, 0.25 + 0.75 * t)
+        for s_ in range(3):
+            f = bm_l.faces.new([rows[s_][0], rows[s_][1], rows[s_ + 1][1], rows[s_ + 1][0]])
+            for l, (uu, vv) in zip(f.loops, [(u0, s_ / 3), (u1, s_ / 3), (u1, (s_ + 1) / 3), (u0, (s_ + 1) / 3)]):
+                l[uvf].uv = (uu + 0.004 if uu == u0 else uu - 0.004, 0.02 + vv * 0.96)
+    bark = obj_from_bm(sc, name + "_vo", bm_b, bark_mat)
+    leaves = obj_from_bm(sc, name + "_la", bm_l, leaf_mat)
+    return bark, leaves, C, len(spots)
