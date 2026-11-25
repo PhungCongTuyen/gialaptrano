@@ -1,4 +1,4 @@
-# Nợ 60 Ngày (bản dựng đầu, greybox)
+# 60 Ngày (bản dựng đầu, greybox)
 
 Game nhập vai 3D góc nhìn thứ nhất: trả 100 triệu trong 60 ngày bằng cách stream, nhặt nhạnh, đánh liều ở chỗ đỏ đen, và giữ vợ không bỏ đi.
 

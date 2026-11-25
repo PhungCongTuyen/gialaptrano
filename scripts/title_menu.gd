@@ -43,7 +43,7 @@ func _ready() -> void:
 	col.position = Vector2(90, 150)
 	col.add_theme_constant_override("separation", 8)
 	root.add_child(col)
-	title_l = UI.label("NỢ 60 NGÀY", 78, Color(1, 0.96, 0.88))
+	title_l = UI.label("60 NGÀY", 78, Color(1, 0.96, 0.88))
 	title_l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
 	title_l.add_theme_constant_override("outline_size", 6)
 	col.add_child(title_l)
