@@ -403,7 +403,6 @@ func _build_street() -> void:
 	for r in ROADS:
 		var c: Vector3 = _m((r[0] + r[2]) / 2.0, (r[1] + r[3]) / 2.0)
 		roads_w.append({"center": c, "size": Vector3((r[2] - r[0]) * PX, 0.04, (r[3] - r[1]) * PX)})
-	town.build_ground(Vector3(MAP_W * PX, 1.0, MAP_H * PX), roads_w)
 	# tường vô hình bao quanh khu phố
 	var hw: float = MAP_W * PX / 2.0
 	var hd: float = MAP_H * PX / 2.0
@@ -413,7 +412,34 @@ func _build_street() -> void:
 	_invisible_wall(Vector3(0, 3, hd + 0.5), Vector3(hw * 2.0, 6, 1))
 	for b in BUILDINGS:
 		_map_building(b)
+	# nền vỉa hè: chọn chỗ bong gạch (tránh cửa nhà, gốc cây, quán ghế nhựa) rồi mới lát
+	var walks: Array = _sidewalk_rects_world()
+	var avoid: Array = []
+	for k in door_spots.keys():
+		avoid.append(door_spots[k]["pos"])
+	for p in TREE_PIXELS:
+		avoid.append(_m(p[0], p[1]))
+	avoid.append(_m(255, 240))
+	var holes: Array = town.plan_holes(walks, avoid, 9)
+	town.build_ground(Vector3(MAP_W * PX, 1.0, MAP_H * PX), roads_w, holes)
 	_build_street_props()
+	town.build_tile_patches(holes)
+	var trees_w: Array = []
+	for p in TREE_PIXELS:
+		trees_w.append(_m(p[0], p[1]))
+	town.scatter_leaves(walks, trees_w, holes)
+
+
+const TREE_PIXELS: Array = [[150, 135], [150, 280], [150, 440], [150, 585], [300, 255], [470, 258], [580, 600], [330, 530], [520, 530]]
+
+
+func _sidewalk_rects_world() -> Array:
+	var out: Array = []
+	for r in SIDEWALKS:
+		var a: Vector3 = _m(r[0], r[1])
+		var b: Vector3 = _m(r[2], r[3])
+		out.append(Rect2(a.x, a.z, b.x - a.x, b.z - a.z))
+	return out
 
 
 ## Cột điện, dây điện, đèn đường, xe máy dựng trước cửa, cây xanh, ghế nhựa quán ăn
@@ -433,7 +459,7 @@ func _build_street_props() -> void:
 		if ok:
 			town.build_motorbike(Vector3(p.x, 0.0, p.z), float(bs["yaw"]))
 	# cây xanh trên vỉa hè
-	for p in [[150, 135], [150, 280], [150, 440], [150, 585], [300, 255], [470, 258], [580, 600], [330, 530], [520, 530]]:
+	for p in TREE_PIXELS:
 		var wp: Vector3 = _m(p[0], p[1])
 		var ok2: bool = true
 		for k in door_spots.keys():

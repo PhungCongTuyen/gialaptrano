@@ -160,7 +160,7 @@ const SIDEWALK_ROUGH: String = "res://textures/via_he/via_he_rough.png"
 const SIDEWALK_REPEAT_M: float = 2.4  # 8 viên x 30 cm
 
 
-func build_ground(size: Vector3, roads: Array) -> void:
+func build_ground(size: Vector3, roads: Array, holes: Array = []) -> void:
 	var tile: StandardMaterial3D = StandardMaterial3D.new()
 	if ResourceLoader.exists(SIDEWALK_ALBEDO):
 		# gạch bát giác + ô vuông kiểu vỉa hè Hà Nội (textures/via_he, tạo bằng tools/tao_gach_via_he.py)
@@ -180,11 +180,25 @@ func build_ground(size: Vector3, roads: Array) -> void:
 		tile.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	else:
 		tile.albedo_texture = tile_tex
-		tile.uv1_scale = Vector3(size.x / 1.2, size.z / 1.2, 1)
+		tile.uv1_triplanar = true
+		tile.uv1_world_triplanar = true
+		tile.uv1_scale = Vector3.ONE / 1.2
 		tile.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
 		tile.roughness = 0.95
-	# mặt đất (vỉa hè lát gạch)
-	solid(self, Vector3(size.x, 1.0, size.z), Vector3(0, -0.5, 0), tile)
+	# va chạm mặt đất (phẳng ở y = 0, kể cả chỗ hố bong gạch)
+	var gb: StaticBody3D = StaticBody3D.new()
+	gb.position = Vector3(0, -0.5, 0)
+	var gcs: CollisionShape3D = CollisionShape3D.new()
+	var gsh: BoxShape3D = BoxShape3D.new()
+	gsh.size = Vector3(size.x, 1.0, size.z)
+	gcs.shape = gsh
+	gb.add_child(gcs)
+	add_child(gb)
+	# lớp cát nền bên dưới gạch (lộ ra ở chỗ gạch bong)
+	deco(self, Vector3(size.x, 0.9, size.z), Vector3(0, -TILE_T - 0.45, 0), _sand_mat())
+	# lớp gạch dày 6 cm, chừa các ô hố
+	sidewalk_mat = tile
+	_build_slabs(size, holes, tile)
 	# mặt đường nhựa + mép vỉa hè
 	var asph: StandardMaterial3D = StandardMaterial3D.new()
 	asph.albedo_texture = asphalt_tex
@@ -624,3 +638,252 @@ func animate_walk(parts: Dictionary, phase: float, moving: bool) -> void:
 	if arms.size() == 2:
 		(arms[0] as Node3D).rotation.x = -a * 0.8
 		(arms[1] as Node3D).rotation.x = a * 0.8
+
+
+# ====================================================================== gạch vỉa hè 3D, hố bong gạch, lá rụng
+
+const TILE_P: float = 0.3      # chu kỳ viên gạch (khớp texture: 8 viên / 2,4 m)
+const TILE_T: float = 0.06     # độ dày viên gạch
+const TILE_OCT_MODEL: String = "res://models/via_he/gach_bat_giac.glb"
+const TILE_SQ_MODEL: String = "res://models/via_he/gach_vuong.glb"
+const LEAF_MODEL: String = "res://models/via_he/la_rung.glb"
+var dmg_rng: RandomNumberGenerator = RandomNumberGenerator.new()
+var _sand: StandardMaterial3D
+var sidewalk_mat: Material  # vật liệu mặt gạch (texture theo toạ độ thế giới) - gạch 3D tại chỗ dùng chung để liền mạch
+
+
+func _sand_mat() -> StandardMaterial3D:
+	if _sand != null:
+		return _sand
+	var img: Image = Image.create(64, 64, false, Image.FORMAT_RGB8)
+	var r: RandomNumberGenerator = RandomNumberGenerator.new()
+	r.seed = 515
+	for y in 64:
+		for x in 64:
+			var v: float = r.randf_range(-0.07, 0.07)
+			if r.randf() < 0.04:
+				v -= 0.18  # sỏi sẫm
+			img.set_pixel(x, y, Color(0.56 + v, 0.5 + v, 0.41 + v))
+	_sand = StandardMaterial3D.new()
+	_sand.albedo_texture = ImageTexture.create_from_image(img)
+	_sand.uv1_triplanar = true
+	_sand.uv1_world_triplanar = true
+	_sand.uv1_scale = Vector3.ONE / 0.35
+	_sand.roughness = 1.0
+	return _sand
+
+
+## Lát mặt gạch thành các tấm chữ nhật, chừa ra hình chữ nhật của từng hố.
+func _build_slabs(size: Vector3, holes: Array, tile: Material) -> void:
+	var x0: float = -size.x / 2.0
+	var x1: float = size.x / 2.0
+	var z0: float = -size.z / 2.0
+	var z1: float = size.z / 2.0
+	var xs: Array = [x0, x1]
+	for h in holes:
+		var hr: Rect2 = h["rect"]
+		xs.append(hr.position.x)
+		xs.append(hr.end.x)
+	xs.sort()
+	for i in xs.size() - 1:
+		var xa: float = xs[i]
+		var xb: float = xs[i + 1]
+		if xb - xa < 0.001:
+			continue
+		var cuts: Array = []
+		for h in holes:
+			var hr2: Rect2 = h["rect"]
+			if hr2.position.x < xb - 0.0001 and hr2.end.x > xa + 0.0001:
+				cuts.append(Vector2(hr2.position.y, hr2.end.y))
+		cuts.sort_custom(func(a: Vector2, b: Vector2) -> bool: return a.x < b.x)
+		var cur: float = z0
+		for c in cuts:
+			if c.x > cur + 0.0001:
+				_slab(xa, xb, cur, c.x, tile)
+			cur = maxf(cur, c.y)
+		if z1 > cur + 0.0001:
+			_slab(xa, xb, cur, z1, tile)
+
+
+func _slab(xa: float, xb: float, za: float, zb: float, tile: Material) -> void:
+	deco(self, Vector3(xb - xa, TILE_T, zb - za), Vector3((xa + xb) / 2.0, -TILE_T / 2.0, (za + zb) / 2.0), tile)
+
+
+## Chọn chỗ vỉa hè bị bong gạch. walks: các Rect2 (x, z) của vỉa hè; avoid: các điểm cần tránh.
+func plan_holes(walks: Array, avoid: Array, count: int) -> Array:
+	dmg_rng.seed = 6060
+	var out: Array = []
+	var tries: int = 0
+	while out.size() < count and tries < 600:
+		tries += 1
+		var r: Rect2 = walks[dmg_rng.randi_range(0, walks.size() - 1)]
+		var cw: int = dmg_rng.randi_range(4, 6)
+		var cd: int = dmg_rng.randi_range(3, 5)
+		var w: float = float(cw) * TILE_P
+		var d: float = float(cd) * TILE_P
+		if r.size.x < w + 1.2 or r.size.y < d + 1.2:
+			continue
+		var x: float = ceilf(dmg_rng.randf_range(r.position.x + 0.5, r.end.x - 0.5 - w) / TILE_P) * TILE_P
+		var z: float = ceilf(dmg_rng.randf_range(r.position.y + 0.5, r.end.y - 0.5 - d) / TILE_P) * TILE_P
+		var rect: Rect2 = Rect2(x, z, w, d)
+		if not r.encloses(rect):
+			continue
+		var bad: bool = false
+		for o in out:
+			if (o["rect"] as Rect2).grow(1.5).intersects(rect):
+				bad = true
+		for a in avoid:
+			if rect.grow(1.4).has_point(Vector2(a.x, a.z)):
+				bad = true
+		if bad:
+			continue
+		var missing: Dictionary = {}
+		missing[Vector2i(dmg_rng.randi_range(1, cw - 2), dmg_rng.randi_range(1, cd - 2))] = true
+		var want: int = dmg_rng.randi_range(2, mini(7, (cw - 2) * (cd - 2)))
+		var guard: int = 0
+		var dirs: Array = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+		while missing.size() < want and guard < 60:
+			guard += 1
+			var keys: Array = missing.keys()
+			var k: Vector2i = keys[dmg_rng.randi_range(0, keys.size() - 1)]
+			var nb: Vector2i = k + (dirs[dmg_rng.randi_range(0, 3)] as Vector2i)
+			if nb.x >= 1 and nb.x <= cw - 2 and nb.y >= 1 and nb.y <= cd - 2:
+				missing[nb] = true
+		out.append({"rect": rect, "cw": cw, "cd": cd, "missing": missing})
+	return out
+
+
+func _put(parent: Node3D, ps: PackedScene, pos: Vector3, rot: Vector3, top: Material = null) -> void:
+	var n: Node3D = ps.instantiate()
+	n.position = pos
+	n.rotation = rot
+	parent.add_child(n)
+	if top != null:
+		for c in n.find_children("*", "MeshInstance3D", true, false):
+			(c as MeshInstance3D).set_surface_override_material(0, top)
+
+
+## Dựng các viên gạch 3D trong vùng hố: gạch còn lại, gạch lỏng quanh hố, đống gạch bị cạy chất bên cạnh.
+func build_tile_patches(holes: Array) -> void:
+	if holes.is_empty() or not ResourceLoader.exists(TILE_OCT_MODEL) or not ResourceLoader.exists(TILE_SQ_MODEL):
+		return
+	var oct: PackedScene = load(TILE_OCT_MODEL)
+	var sq: PackedScene = load(TILE_SQ_MODEL)
+	for h in holes:
+		var root: Node3D = Node3D.new()
+		add_child(root)
+		var R: Rect2 = h["rect"]
+		var cw: int = h["cw"]
+		var cd: int = h["cd"]
+		var missing: Dictionary = h["missing"]
+		for i in cw:
+			for j in cd:
+				var key: Vector2i = Vector2i(i, j)
+				if missing.has(key):
+					continue
+				var near: bool = missing.has(key + Vector2i(1, 0)) or missing.has(key - Vector2i(1, 0)) or missing.has(key + Vector2i(0, 1)) or missing.has(key - Vector2i(0, 1))
+				var c: Vector3 = Vector3(R.position.x + (float(i) + 0.5) * TILE_P, 0.002, R.position.y + (float(j) + 0.5) * TILE_P)
+				var rot: Vector3 = Vector3.ZERO
+				if near:
+					# gạch lỏng: lún / kênh nhẹ
+					c.y += dmg_rng.randf_range(-0.014, 0.01)
+					rot = Vector3(dmg_rng.randf_range(-0.06, 0.06), dmg_rng.randf_range(-0.04, 0.04), dmg_rng.randf_range(-0.06, 0.06))
+				_put(root, oct, c, rot, sidewalk_mat)
+		var loose_sq: int = 0
+		for i in cw + 1:
+			for j in cd + 1:
+				var adj: int = 0
+				for di in [-1, 0]:
+					for dj in [-1, 0]:
+						if missing.has(Vector2i(i + di, j + dj)):
+							adj += 1
+				if adj >= 2 or (adj == 1 and dmg_rng.randf() < 0.5):
+					loose_sq += 1
+					continue
+				var c2: Vector3 = Vector3(R.position.x + float(i) * TILE_P, 0.002, R.position.y + float(j) * TILE_P)
+				var rot2: Vector3 = Vector3.ZERO
+				if adj == 1:
+					c2.y += dmg_rng.randf_range(-0.01, 0.008)
+					rot2 = Vector3(dmg_rng.randf_range(-0.08, 0.08), 0, dmg_rng.randf_range(-0.08, 0.08))
+				_put(root, sq, c2, rot2, sidewalk_mat)
+		# đống gạch bị cạy lên, chất cạnh hố
+		var side: int = dmg_rng.randi_range(0, 3)
+		var pc: Vector3
+		match side:
+			0: pc = Vector3(R.position.x - 0.45, 0, R.get_center().y)
+			1: pc = Vector3(R.end.x + 0.45, 0, R.get_center().y)
+			2: pc = Vector3(R.get_center().x, 0, R.position.y - 0.45)
+			_: pc = Vector3(R.get_center().x, 0, R.end.y + 0.45)
+		var n_oct: int = missing.size()
+		for k in n_oct:
+			var layer: int = k / 3
+			var jit: Vector3 = Vector3(dmg_rng.randf_range(-0.16, 0.16), 0, dmg_rng.randf_range(-0.16, 0.16))
+			var tilt: Vector3 = Vector3(dmg_rng.randf_range(-0.12, 0.12), dmg_rng.randf() * TAU, dmg_rng.randf_range(-0.12, 0.12))
+			if k % 4 == 3:
+				tilt.x = dmg_rng.randf_range(0.35, 0.6)  # viên dựng nghiêng
+			_put(root, oct, pc + jit + Vector3(0, TILE_T + float(layer) * (TILE_T + 0.004) + absf(tilt.x) * 0.1, 0), tilt, mat(Color(0.47, 0.27, 0.24), 0.9))
+		for k in loose_sq:
+			var jit2: Vector3 = Vector3(dmg_rng.randf_range(-0.3, 0.3), 0, dmg_rng.randf_range(-0.3, 0.3))
+			var rot3: Vector3 = Vector3(0, dmg_rng.randf() * TAU, 0)
+			if dmg_rng.randf() < 0.3:
+				rot3.x = PI / 2.0  # nằm nghiêng lộ thân bê tông
+			_put(root, sq, pc + jit2 + Vector3(0, TILE_T, 0), rot3, mat(Color(0.64, 0.57, 0.38), 0.9))
+
+
+## Rải lá vàng rụng trên vỉa hè (MultiMesh, nhiều quanh gốc cây).
+func scatter_leaves(walks: Array, trees: Array, holes: Array, density: float = 0.9) -> void:
+	if not ResourceLoader.exists(LEAF_MODEL):
+		return
+	var tmp: Node = (load(LEAF_MODEL) as PackedScene).instantiate()
+	var meshes: Array = []
+	for c in tmp.find_children("*", "MeshInstance3D", true, false):
+		meshes.append((c as MeshInstance3D).mesh)
+	tmp.free()
+	if meshes.is_empty():
+		return
+	var weights: Array = [0.42, 0.2, 0.16, 0.22]
+	var lr: RandomNumberGenerator = RandomNumberGenerator.new()
+	lr.seed = 909
+	var per: Array = []
+	for m in meshes:
+		per.append([])
+	var add_leaf: Callable = func(x: float, z: float) -> void:
+		for h in holes:
+			if (h["rect"] as Rect2).grow(0.05).has_point(Vector2(x, z)):
+				return
+		var pick: float = lr.randf()
+		var idx: int = 0
+		var acc: float = 0.0
+		for wi in meshes.size():
+			acc += weights[wi % weights.size()]
+			if pick <= acc:
+				idx = wi
+				break
+		var b: Basis = Basis.from_euler(Vector3(lr.randf_range(-0.18, 0.18), lr.randf() * TAU, lr.randf_range(-0.18, 0.18)))
+		b = b.scaled(Vector3.ONE * lr.randf_range(0.9, 1.5))
+		per[idx].append(Transform3D(b, Vector3(x, 0.004 + lr.randf() * 0.004, z)))
+	for r in walks:
+		var rr: Rect2 = r
+		var n: int = int(rr.get_area() * density)
+		for i in n:
+			add_leaf.call(lr.randf_range(rr.position.x, rr.end.x), lr.randf_range(rr.position.y, rr.end.y))
+	for t in trees:
+		var tp: Vector3 = t
+		for i in 160:
+			var ang: float = lr.randf() * TAU
+			var rad: float = absf(lr.randfn(0.0, 1.6)) + 0.35
+			add_leaf.call(tp.x + cos(ang) * rad, tp.z + sin(ang) * rad)
+	for i in meshes.size():
+		var list: Array = per[i]
+		if list.is_empty():
+			continue
+		var mm: MultiMesh = MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = meshes[i]
+		mm.instance_count = list.size()
+		for k in list.size():
+			mm.set_instance_transform(k, list[k])
+		var mmi: MultiMeshInstance3D = MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(mmi)

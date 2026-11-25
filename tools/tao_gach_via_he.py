@@ -4,7 +4,7 @@ rng = np.random.default_rng(1125)
 N = 8                 # số viên mỗi chiều trong 1 lần lặp
 P = 256               # px mỗi viên (chu kỳ)
 S = N * P
-g = 7.0               # rộng kẽ (px)
+g = 5.0               # rộng kẽ (px)
 bev = 9.0             # độ vát mép
 r = P / 2 - g / 2     # bán kính trong bát giác
 k = P - np.sqrt(2) * (r + g)
@@ -37,7 +37,7 @@ inside = d > 0
 h = np.clip(d / bev, 0, 1); h = h * h * (3 - 2 * h)        # độ cao (vát mép mềm)
 
 # màu từng viên
-pink = np.array([0.80, 0.54, 0.53]); yellow = np.array([0.88, 0.80, 0.60]); grey = np.array([0.76, 0.76, 0.74])
+pink = np.array([0.55, 0.31, 0.28]); yellow = np.array([0.55, 0.31, 0.28]); grey = np.array([0.76, 0.68, 0.45])
 di = np.abs(np.arange(N) - 3.5)
 band = np.add.outer(di, di)                  # [j,i]
 is_yel_tile = (np.abs(band - 4) < 0.6) | (band < 1.5)
@@ -57,10 +57,11 @@ blot = pnoise(S, 24, 2)[..., None]
 col = col * (1 + 0.035 * blot) + grain
 # mép viên sẫm hơn (bụi bám)
 edge = (1 - h)[..., None]
-col = col * (1 - 0.25 * edge)
+rim = np.clip(1 - np.abs(d - bev * 0.55) / (bev * 0.45), 0, 1)[..., None] * inside[..., None]
+col = col * (1 - 0.18 * edge) + 0.05 * rim
 
 # kẽ gạch: vữa/đất
-grout = np.array([0.45, 0.43, 0.39]) + rng.standard_normal((S, S, 1)) * 0.03
+grout = np.array([0.52, 0.48, 0.40]) + rng.standard_normal((S, S, 1)) * 0.03
 col = np.where(inside[..., None], col, grout)
 
 # rêu: nhiều ở kẽ, lan ra mép viên theo vùng nhiễu
