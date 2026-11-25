@@ -104,6 +104,9 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	player.locked = hud.menu_open or hud.fading or hud.inv_open or hud.live_open or digging
+	# tay phải cầm món đang chọn trên thanh đồ (khi đang ăn/uống thì giữ nguyên món đó)
+	if player.use_time < 0.0:
+		player.hold_item(GameState.selected_id() if game_live else "")
 	var free: bool = game_live and not hud.menu_open and not hud.fading and not hud.inv_open and not hud.live_open and not GameState.finished
 	if free:
 		GameState.tick(delta)
@@ -1628,6 +1631,7 @@ func _intro_take_report(t: Node) -> void:
 	(t as Node3D).visible = false
 	(t as CollisionObject3D).collision_layer = 0
 	intro_took_report = true
+	player.hold_document("report")
 	hud.set_objective("")
 	_say("Tôi (nghĩ thầm)", "Đủ rồi. Mang lên phòng giám đốc thôi.", _intro_boss, "intro_06")
 
@@ -1640,6 +1644,7 @@ func _intro_boss() -> void:
 
 func _intro_boss_enter() -> void:
 	linh.visible = false
+	player.hold_document("")  # để báo cáo lên bàn giám đốc
 	player.teleport(BOSS_ORIGIN + Vector3(0, 1.0, 1.2), 0.0)
 	_say("PHÒNG GIÁM ĐỐC", "Căn phòng im lặng đến mức nghe rõ tiếng điều hòa. Giám đốc ngồi sau bàn, chưa ngẩng đầu lên ngay.", _intro_boss_1, "intro_07")
 
@@ -1675,6 +1680,7 @@ func _intro_take_paper(t: Node) -> void:
 	(t as CollisionObject3D).collision_layer = 0
 	hud.set_objective("")
 	hud.set_hint("")
+	player.hold_document("paper")
 	_say("RỜI CÔNG TY", "Bạn cầm tờ giấy lên. Chữ ký, con dấu đỏ, và cái tên của bạn. Ngần ấy năm làm việc, hóa ra chỉ cần một tờ giấy để kết thúc.", _intro_end, "intro_12")
 
 
@@ -1683,6 +1689,7 @@ func _intro_end() -> void:
 
 
 func _intro_end_mid() -> void:
+	player.hold_document("")
 	_start_day()
 
 
@@ -2318,8 +2325,17 @@ func _do_pick() -> void:
 # ---------------------------------------------------------------- dùng đồ, hướng dẫn
 
 func _use_item() -> void:
-	if hud.menu_open or hud.fading or not game_live:
+	if hud.menu_open or hud.fading or not game_live or using_item or digging:
 		return
+	var id: String = GameState.selected_id()
+	var info: Dictionary = GameState.item_info(id) if id != "" else {}
+	if info.has("use"):
+		# đưa lên miệng ăn / uống rồi mới tính
+		using_item = true
+		var drink: bool = str(info.get("type", "")) == "drink"
+		player.play_use("drink" if drink else "eat", 1.6)
+		await get_tree().create_timer(1.6).timeout
+		using_item = false
 	var r: Dictionary = GameState.use_selected()
 	var t: String = str(r["text"])
 	if r.has("lines") and r["lines"].size() > 0:
@@ -2421,6 +2437,7 @@ func _do_loan() -> void:
 
 const DIG_SECONDS: float = 5.0
 var digging: bool = false
+var using_item: bool = false
 
 
 ## Bấm E vào đụn rác / đụn lá: hai tay bới trong 5 giây rồi ra kết quả (không hỏi lại).

@@ -16,6 +16,7 @@ var target: Node = null
 var cam: Camera3D
 var ray: RayCast3D
 var pitch: float = 0.0
+var viewmodel: Node3D
 var wrist: Node3D      # tay trái (đeo đồng hồ)
 var arm_r: Node3D      # tay phải
 var watch_label: Label3D
@@ -50,47 +51,57 @@ func _ready() -> void:
 	ray.target_position = Vector3(0, 0, -3.2)
 	cam.add_child(ray)
 	ray.add_exception(self)
+	viewmodel = Node3D.new()
+	viewmodel.scale = Vector3.ONE * 0.5  # thu nhỏ & kéo sát camera: hình y hệt nhưng không xuyên tường
+	cam.add_child(viewmodel)
 	wrist = _make_arm(-1.0, true)
 	arm_r = _make_arm(1.0, false)
 	_update_arms(0.0)
 
 
-## Một cánh tay (cẳng tay, tay áo, bàn tay, ngón tay) gắn vào camera, vẽ đè lên mọi thứ để không bị tường che.
-## Tay trái có đồng hồ đeo ở cổ tay.
+## Một cánh tay gắn vào camera (trong khung "viewmodel" thu nhỏ 1/2 để không bao giờ xuyên tường).
+## Dùng mô hình Blender (models/tay/tay_<tư thế>.glb); thiếu file thì dựng bằng khối hộp.
+## Tay trái là bản lật gương của tay phải và có đồng hồ ở cổ tay.
 func _make_arm(side: float, watch: bool) -> Node3D:
 	var arm: Node3D = Node3D.new()
-	cam.add_child(arm)
-	var skin: StandardMaterial3D = _overlay_mat(Color(0.85, 0.65, 0.5))
-	var shirt: StandardMaterial3D = _overlay_mat(Color(0.25, 0.3, 0.45))
-	var parts: Array = [
-		[Vector3(0.085, 0.07, 0.45), Vector3(0, 0, 0.2), skin, 0.0],          # cẳng tay
-		[Vector3(0.11, 0.09, 0.2), Vector3(0, 0, 0.42), shirt, 0.0],           # tay áo
-		[Vector3(0.09, 0.03, 0.1), Vector3(0, -0.006, -0.07), skin, 0.0],      # bàn tay
-		[Vector3(0.022, 0.022, 0.055), Vector3(0.05 * -side, -0.002, -0.07), skin, 0.0],  # ngón cái
-	]
-	for k in 4:  # ngón tay, hơi co
-		parts.append([Vector3(0.017, 0.018, 0.065), Vector3(-0.032 + float(k) * 0.021, -0.02, -0.14), skin, 0.45])
-	for pt in parts:
+	viewmodel.add_child(arm)
+	var mir: Node3D = Node3D.new()
+	mir.name = "mirror"
+	mir.scale = Vector3(side, 1, 1)
+	arm.add_child(mir)
+	if _load_pose_meshes():
 		var mi: MeshInstance3D = MeshInstance3D.new()
-		var bm: BoxMesh = BoxMesh.new()
-		bm.size = pt[0]
-		mi.mesh = bm
-		mi.position = pt[1]
-		mi.rotation.x = pt[3]
-		mi.material_override = pt[2]
-		arm.add_child(mi)
+		mi.name = "hand"
+		mi.mesh = _pose_meshes["tha_long"]
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mir.add_child(mi)
+	else:
+		_box_arm(mir, side)
+	var grip: Node3D = Node3D.new()
+	grip.name = "grip"
+	grip.position = GRIP_POS
+	mir.add_child(grip)
 	if watch:
 		var body: MeshInstance3D = MeshInstance3D.new()
 		var wb: BoxMesh = BoxMesh.new()
-		wb.size = Vector3(0.1, 0.02, 0.085)
+		wb.size = Vector3(0.05, 0.012, 0.042)
 		body.mesh = wb
-		body.position = Vector3(0, 0.043, 0.02)
+		body.position = Vector3(0, 0.024, 0.035)
 		body.material_override = _overlay_mat(Color(0.06, 0.06, 0.07))
 		arm.add_child(body)
+		var strap: MeshInstance3D = MeshInstance3D.new()
+		var sb: BoxMesh = BoxMesh.new()
+		sb.size = Vector3(0.064, 0.044, 0.02)
+		strap.mesh = sb
+		strap.position = Vector3(0, 0.0, 0.035)
+		var smat: StandardMaterial3D = StandardMaterial3D.new()
+		smat.albedo_color = Color(0.08, 0.08, 0.09)
+		strap.material_override = smat
+		arm.add_child(strap)
 		watch_label = Label3D.new()
-		watch_label.position = Vector3(0, 0.055, 0.02)
+		watch_label.position = Vector3(0, 0.031, 0.035)
 		watch_label.rotation = Vector3(-PI / 2.0, 0, 0)
-		watch_label.pixel_size = 0.00028
+		watch_label.pixel_size = 0.00011
 		watch_label.font_size = 64
 		watch_label.outline_size = 0
 		watch_label.modulate = Color(0.55, 1.0, 0.65)
@@ -100,6 +111,47 @@ func _make_arm(side: float, watch: bool) -> Node3D:
 		watch_label.text = "07:00"
 		arm.add_child(watch_label)
 	return arm
+
+
+const HAND_POSES: Array = ["tha_long", "cao", "nam", "kep"]
+const GRIP_POS: Vector3 = Vector3(0.0, -0.032, -0.072)  # tâm nắm tay (toạ độ bàn tay)
+var _pose_meshes: Dictionary = {}
+
+
+func _load_pose_meshes() -> bool:
+	if not _pose_meshes.is_empty():
+		return true
+	for p in HAND_POSES:
+		var path: String = "res://models/tay/tay_%s.glb" % p
+		if not ResourceLoader.exists(path):
+			_pose_meshes.clear()
+			return false
+		var n: Node = (load(path) as PackedScene).instantiate()
+		var mis: Array = n.find_children("*", "MeshInstance3D", true, false)
+		if not mis.is_empty():
+			_pose_meshes[p] = (mis[0] as MeshInstance3D).mesh
+		n.free()
+	return _pose_meshes.size() == HAND_POSES.size()
+
+
+func _set_pose(arm: Node3D, pose: String) -> void:
+	var hand: MeshInstance3D = arm.get_node_or_null("mirror/hand") as MeshInstance3D
+	if hand != null and _pose_meshes.has(pose) and hand.mesh != _pose_meshes[pose]:
+		hand.mesh = _pose_meshes[pose]
+
+
+func _box_arm(parent: Node3D, side: float) -> void:
+	var skin: StandardMaterial3D = _overlay_mat(Color(0.85, 0.65, 0.5))
+	var shirt: StandardMaterial3D = _overlay_mat(Color(0.25, 0.3, 0.45))
+	for pt in [[Vector3(0.085, 0.07, 0.45), Vector3(0, 0, 0.2), skin], [Vector3(0.11, 0.09, 0.2), Vector3(0, 0, 0.42), shirt],
+			[Vector3(0.09, 0.03, 0.12), Vector3(0, -0.006, -0.08), skin]]:
+		var mi: MeshInstance3D = MeshInstance3D.new()
+		var bm: BoxMesh = BoxMesh.new()
+		bm.size = pt[0]
+		mi.mesh = bm
+		mi.position = pt[1]
+		mi.material_override = pt[2]
+		parent.add_child(mi)
 
 
 func _overlay_mat(c: Color) -> StandardMaterial3D:
@@ -199,10 +251,30 @@ func _physics_process(delta: float) -> void:
 			target = c as Node
 
 
-# ---------------------------------------------------------------- tư thế hai tay: đứng / đi / xem đồng hồ / bới
+# ---------------------------------------------------------------- tư thế hai tay: đứng / đi / xem đồng hồ / bới / cầm đồ
 
 var dig_time: float = -1.0
 var dig_len: float = 5.0
+var held_id: String = ""        # món đang cầm ở tay phải (ô đang chọn trên thanh đồ)
+var held_node: Node3D = null
+var doc_kind: String = ""       # "report" / "paper": cầm giấy tờ bằng hai tay (intro)
+var doc_node: Node3D = null
+var use_time: float = -1.0      # đang ăn / uống
+var use_len: float = 1.6
+var use_kind: String = ""       # "eat" / "drink"
+var _w_hold: float = 0.0
+var _w_doc: float = 0.0
+var _w_use: float = 0.0
+
+# món -> [model, tỉ lệ, tư thế tay, xoay thêm]
+const HOLD_MODELS: Dictionary = {
+	"water": ["chai_nuoc", 1.0, "nam"], "bottle": ["chai_nuoc", 0.95, "nam"],
+	"soda": ["lon_nuoc", 1.0, "nam"], "can": ["lon_nuoc", 0.95, "nam"],
+	"banhmi": ["banh_mi", 1.0, "nam", Vector3(-1.0, 0, 0)], "mi_ly": ["ly_mi", 1.0, "nam"], "com_hop": ["hop_com", 1.0, "nam"],
+	"paper": ["to_giay", 0.6, "kep"], "phone_broken": ["dien_thoai", 1.0, "nam"], "lighter": ["bat_lua", 1.0, "nam"],
+	"copper": ["cuon_day_dong", 0.8, "nam"], "copper_s": ["cuon_day_dong", 0.6, "nam"], "copper_m": ["cuon_day_dong", 0.8, "nam"],
+	"copper_l": ["cuon_day_dong", 1.0, "nam"], "copper_coil": ["cuon_day_dong", 1.5, "nam"],
+}
 
 
 ## Bắt đầu động tác bới trong `seconds` giây (người cúi xuống, hai tay cào bới).
@@ -216,25 +288,195 @@ func stop_dig() -> void:
 	dig_time = -1.0
 
 
+## Động tác ăn ("eat") hoặc uống ("drink") món đang cầm.
+func play_use(kind: String, seconds: float = 1.6) -> void:
+	use_kind = kind
+	use_len = seconds
+	use_time = 0.0
+	watch_raised = false
+
+
+## Cầm món `id` ở tay phải ("" = tay không).
+func hold_item(id: String) -> void:
+	if id == held_id:
+		return
+	held_id = id
+	if held_node != null:
+		held_node.queue_free()
+		held_node = null
+	if id == "":
+		return
+	held_node = _make_held(id)
+	(arm_r.get_node("mirror/grip") as Node3D).add_child(held_node)
+
+
+func _make_held(id: String) -> Node3D:
+	var root: Node3D = Node3D.new()
+	var spec: Array = HOLD_MODELS.get(id, [])
+	var item: Node3D = null
+	if not spec.is_empty() and ResourceLoader.exists("res://models/do_cam/%s.glb" % spec[0]):
+		item = (load("res://models/do_cam/%s.glb" % spec[0]) as PackedScene).instantiate()
+		item.scale = Vector3.ONE * float(spec[1])
+		if spec.size() > 3:
+			item.rotation = spec[3]  # xoay thêm cho tự nhiên (vd. bánh mì chúc về trước)
+	else:
+		item = _small_item_mesh(id)
+	root.add_child(item)
+	# trục dài của đồ (Y) nằm ngang theo nắm tay (X)
+	root.rotation = Vector3(0, 0, PI / 2.0)
+	for mi in root.find_children("*", "MeshInstance3D", true, false):
+		(mi as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return root
+
+
+## Đồ nhỏ không có model Blender: trang sức, lockpick, sắt vụn...
+func _small_item_mesh(id: String) -> Node3D:
+	var mi: MeshInstance3D = MeshInstance3D.new()
+	var m: StandardMaterial3D = StandardMaterial3D.new()
+	var info: Dictionary = GameState.item_info(id)
+	var typ: String = str(info.get("type", ""))
+	if typ == "jewelry":
+		var tm: TorusMesh = TorusMesh.new()
+		var big: bool = id.begins_with("necklace") or id.begins_with("bracelet")
+		tm.inner_radius = 0.028 if big else 0.008
+		tm.outer_radius = 0.033 if big else 0.011
+		mi.mesh = tm
+		m.albedo_color = Color(0.95, 0.75, 0.25) if id.ends_with("gold") else Color(0.85, 0.86, 0.9)
+		m.metallic = 1.0
+		m.roughness = 0.2
+		mi.rotation.x = PI / 2.0
+	elif id == "lockpick":
+		var bm: BoxMesh = BoxMesh.new()
+		bm.size = Vector3(0.004, 0.11, 0.008)
+		mi.mesh = bm
+		m.albedo_color = Color(0.7, 0.7, 0.72)
+		m.metallic = 1.0
+	else:
+		var bm2: BoxMesh = BoxMesh.new()
+		bm2.size = Vector3(0.05, 0.08, 0.03)
+		mi.mesh = bm2
+		m.albedo_color = Color(0.45, 0.42, 0.4)
+		m.metallic = 0.6
+	mi.material_override = m
+	return mi
+
+
+## Cầm giấy tờ bằng hai tay trước mặt: "report" (bản báo cáo), "paper" (giấy cho nghỉ việc), "" = cất đi.
+func hold_document(kind: String) -> void:
+	doc_kind = kind
+	if doc_node != null:
+		doc_node.queue_free()
+		doc_node = null
+	if kind == "":
+		return
+	doc_node = Node3D.new()
+	var model: String = "bia_bao_cao" if kind == "report" else "to_giay"
+	var path: String = "res://models/do_cam/%s.glb" % model
+	if ResourceLoader.exists(path):
+		doc_node.add_child((load(path) as PackedScene).instantiate())
+	else:
+		var mi: MeshInstance3D = MeshInstance3D.new()
+		var bm: BoxMesh = BoxMesh.new()
+		bm.size = Vector3(0.21, 0.297, 0.002)
+		mi.mesh = bm
+		doc_node.add_child(mi)
+	var lb: Label3D = Label3D.new()
+	lb.pixel_size = 0.00042
+	lb.font_size = 32
+	lb.outline_size = 0
+	lb.modulate = Color(0.08, 0.08, 0.1)
+	lb.width = 420
+	lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	lb.position = Vector3(0, 0.02, 0.0075 if kind == "report" else 0.0035)
+	if kind == "report":
+		lb.text = "BÁO CÁO CÔNG VIỆC\nQUÝ IV\n\nPhòng Vận hành\nNgười lập: ..."
+		lb.modulate = Color(0.95, 0.95, 0.95)
+		lb.font_size = 40
+	else:
+		lb.text = "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM\nĐộc lập - Tự do - Hạnh phúc\n\nQUYẾT ĐỊNH\nV/v chấm dứt hợp đồng lao động\n\nĐiều 1. Chấm dứt hợp đồng lao động đối với nhân viên kể từ ngày ký.\nLý do: cơ cấu lại nhân sự, ứng dụng hệ thống AI.\n\nGIÁM ĐỐC"
+	doc_node.add_child(lb)
+	if kind == "paper":
+		var stamp: Label3D = Label3D.new()
+		stamp.text = "◯"
+		stamp.font_size = 160
+		stamp.pixel_size = 0.0004
+		stamp.modulate = Color(0.85, 0.1, 0.1, 0.8)
+		stamp.position = Vector3(0.05, -0.105, 0.004)
+		doc_node.add_child(stamp)
+	for mi in doc_node.find_children("*", "MeshInstance3D", true, false):
+		(mi as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	viewmodel.add_child(doc_node)
+	doc_node.position = DOC_POS
+	doc_node.rotation = DOC_ROT
+
+
+const DOC_POS: Vector3 = Vector3(0.0, -0.13, -0.42)
+const DOC_ROT: Vector3 = Vector3(-0.55, 0.0, 0.0)
+const HOLD_POS: Vector3 = Vector3(0.2, -0.2, -0.42)      # tay phải cầm đồ
+const HOLD_ROT: Vector3 = Vector3(0.25, 0.3, -1.35)
+const MOUTH_POS: Vector3 = Vector3(0.05, -0.12, -0.2)    # đưa lên miệng
+const MOUTH_ROT: Vector3 = Vector3(0.55, 0.35, -1.4)
+
+
 func _process(delta: float) -> void:
 	_life_t += delta
 	if dig_time >= 0.0:
 		dig_time += delta
+	if use_time >= 0.0:
+		use_time += delta
+		if use_time >= use_len:
+			use_time = -1.0
 	_update_arms(delta)
 
 
 func _update_arms(delta: float) -> void:
 	var k: float = minf(1.0, delta * 10.0) if delta > 0.0 else 1.0
+	var k2: float = minf(1.0, delta * 7.0) if delta > 0.0 else 1.0
 	_w_watch = lerpf(_w_watch, 1.0 if watch_raised else 0.0, k)
-	_w_dig = lerpf(_w_dig, 1.0 if dig_time >= 0.0 else 0.0, minf(1.0, delta * 7.0) if delta > 0.0 else 1.0)
+	_w_dig = lerpf(_w_dig, 1.0 if dig_time >= 0.0 else 0.0, k2)
+	_w_doc = lerpf(_w_doc, 1.0 if doc_kind != "" else 0.0, k2)
+	_w_hold = lerpf(_w_hold, 1.0 if (held_id != "" and doc_kind == "") else 0.0, k2)
+	var use_w: float = 0.0
+	if use_time >= 0.0:
+		use_w = clampf(use_time / 0.35, 0.0, 1.0) * clampf((use_len - use_time) / 0.35, 0.0, 1.0)
+	_w_use = use_w
+	if held_node != null:
+		held_node.visible = doc_kind == "" and dig_time < 0.0
+	# tư thế ngón tay
+	var pose_r: String = "tha_long"
+	var pose_l: String = "tha_long"
+	if dig_time >= 0.0:
+		pose_r = "cao"
+		pose_l = "cao"
+	elif doc_kind != "":
+		pose_r = "kep"
+		pose_l = "kep"
+	elif held_id != "":
+		pose_r = str(HOLD_MODELS.get(held_id, ["", 1.0, "kep"])[2])
+	_set_pose(arm_r, pose_r)
+	_set_pose(wrist, pose_l)
 	var breathe: float = sin(_life_t * 1.6) * 0.004
 	for e in [[wrist, -1.0], [arm_r, 1.0]]:
 		var arm: Node3D = e[0]
 		var side: float = e[1]
-		# đứng yên / đi: ở góc dưới màn hình, nhún theo bước chân
 		var bob: Vector3 = Vector3(sin(_bob_t) * 0.012 * side, -absf(cos(_bob_t)) * 0.016, 0.0) * _bob_amp
 		var pos: Vector3 = Vector3(ARM_IDLE_POS.x * side, ARM_IDLE_POS.y + breathe, ARM_IDLE_POS.z) + bob
 		var rot: Vector3 = Vector3(ARM_IDLE_ROT.x, ARM_IDLE_ROT.y * side, ARM_IDLE_ROT.z * side)
+		# tay phải cầm đồ: đưa ra trước, ngón cái hướng lên
+		if side > 0.0 and _w_hold > 0.001:
+			pos = pos.lerp(HOLD_POS + bob + Vector3(0, breathe, 0), _w_hold)
+			rot = rot.lerp(HOLD_ROT, _w_hold)
+			if _w_use > 0.001:
+				var chew: float = sin(use_time * TAU * 2.2) * 0.012 if use_kind == "eat" else 0.0
+				var mrot: Vector3 = MOUTH_ROT + (Vector3(0.6, 0, 0) if use_kind == "drink" else Vector3.ZERO)
+				pos = pos.lerp(MOUTH_POS + Vector3(0, chew, 0), _w_use)
+				rot = rot.lerp(mrot, _w_use)
+		# hai tay cầm giấy tờ ở hai mép dưới
+		if _w_doc > 0.001:
+			var dp: Vector3 = DOC_POS + Vector3(0.1 * side, -0.115, 0.075)
+			var dr: Vector3 = Vector3(0.75, -0.35 * side, -1.1 * side)
+			pos = pos.lerp(dp + Vector3(0, breathe, 0), _w_doc)
+			rot = rot.lerp(dr, _w_doc)
 		# bới: hai bàn tay thay nhau cào xuống đụn
 		if _w_dig > 0.001:
 			var t: float = maxf(dig_time, 0.0)
@@ -251,3 +493,5 @@ func _update_arms(delta: float) -> void:
 			rot = rot.lerp(WRIST_UP_ROT, _w_watch)
 		arm.position = pos
 		arm.rotation = rot
+	if doc_node != null:
+		doc_node.position = DOC_POS + Vector3(0, breathe, 0)
