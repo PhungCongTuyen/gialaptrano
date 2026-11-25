@@ -1239,11 +1239,114 @@ func build_perimeter_wall(hw: float, hd: float) -> void:
 			# mặt ngoài (ít khi thấy)
 			_wall_quad(st, [o1 + Vector3(0, WALL_H, 0), o0 + Vector3(0, WALL_H, 0), o0, o1], -n,
 					[Vector2(ub, v0), Vector2(ua, v0), Vector2(ua, v0 + 0.5), Vector2(ub, v0 + 0.5)])
+			# lớp vữa trát dày, nổi khỏi mặt gạch
+			_add_plaster(v, flip, p0, dir, n, p0.distance_to(p1), mat_w)
 	st.generate_tangents()
 	var mi: MeshInstance3D = MeshInstance3D.new()
 	mi.mesh = st.commit()
 	mi.material_override = mat_w
 	add_child(mi)
+
+
+# ---- lớp vữa trát nổi (khối dày 2,5 cm dựng từ mặt nạ textures/tuong/tuong_vua_mask.png)
+const PLASTER_T: float = 0.025
+const PL_COLS: int = 200        # điểm mặt nạ theo chiều ngang mỗi ô (2 cm / điểm)
+const PL_ROWS: int = 160
+var _pl_mask: Image
+var _pl_cache: Dictionary = {}
+var _pl_side_mat: StandardMaterial3D
+
+
+func _add_plaster(v: int, flip: bool, p0: Vector3, dir: Vector3, n: Vector3, length: float, mat_w: Material) -> void:
+	if _pl_mask == null:
+		if not ResourceLoader.exists("res://textures/tuong/tuong_vua_mask.png"):
+			return
+		_pl_mask = (load("res://textures/tuong/tuong_vua_mask.png") as Texture2D).get_image()
+		_pl_side_mat = StandardMaterial3D.new()
+		_pl_side_mat.albedo_color = Color(0.8, 0.78, 0.71)  # vữa lót xám trắng ở mép vỡ
+		_pl_side_mat.roughness = 1.0
+	var cols: int = clampi(int(round(length / WALL_SEG * float(PL_COLS))), 1, PL_COLS)
+	var key: String = "%d_%s_%d" % [v, flip, cols]
+	if not _pl_cache.has(key):
+		_pl_cache[key] = _plaster_mesh(v, flip, cols, mat_w)
+	var mi: MeshInstance3D = MeshInstance3D.new()
+	mi.mesh = _pl_cache[key]
+	mi.transform = Transform3D(Basis(dir, Vector3.UP, n), p0)
+	add_child(mi)
+
+
+func _pl_on(v: int, flip: bool, c: int, r: int) -> bool:
+	if c < 0 or c >= PL_COLS or r < 0 or r >= PL_ROWS:
+		return false
+	var cc: int = (PL_COLS - 1 - c) if flip else c
+	var ox: int = (v % 2) * PL_COLS
+	var oy: int = (v / 2) * PL_ROWS
+	return _pl_mask.get_pixel(ox + cc, oy + r).r > 0.5
+
+
+## Khối vữa: mặt trên ghép thành dải theo từng hàng (ít tam giác), thành bên dựng ở mọi mép vỡ.
+## Toạ độ cục bộ: x dọc tường, y lên trên, z hướng vào phố.
+func _plaster_mesh(v: int, flip: bool, cols: int, mat_w: Material) -> ArrayMesh:
+	var cw: float = WALL_SEG / float(PL_COLS)
+	var rh: float = WALL_H / float(PL_ROWS)
+	var u0: float = float(v % 2) * 0.5
+	var v0: float = float(v / 2) * 0.5
+	var top: SurfaceTool = SurfaceTool.new()
+	top.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var side: SurfaceTool = SurfaceTool.new()
+	side.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var T: float = PLASTER_T
+	var uvf: Callable = func(x: float, y: float) -> Vector2:
+		var ux: float = x / WALL_SEG
+		if flip:
+			ux = 1.0 - ux
+		return Vector2(u0 + ux * 0.5, v0 + (1.0 - y / WALL_H) * 0.5)
+	for r in PL_ROWS:
+		var y1: float = WALL_H - float(r) * rh
+		var y0: float = y1 - rh
+		var c: int = 0
+		while c < cols:
+			if not _pl_on(v, flip, c, r):
+				c += 1
+				continue
+			var c0: int = c
+			while c < cols and _pl_on(v, flip, c, r):
+				c += 1
+			var x0: float = float(c0) * cw
+			var x1: float = float(c) * cw
+			var q: Array = [Vector3(x0, y1, T), Vector3(x1, y1, T), Vector3(x1, y0, T), Vector3(x0, y0, T)]
+			for idx in [0, 2, 1, 0, 3, 2]:
+				top.set_normal(Vector3.BACK)
+				top.set_uv(uvf.call(q[idx].x, q[idx].y))
+				top.add_vertex(q[idx])
+		# thành bên: trên/dưới của từng ô, trái/phải
+		for cc in cols:
+			if not _pl_on(v, flip, cc, r):
+				continue
+			var xa: float = float(cc) * cw
+			var xb: float = xa + cw
+			if not _pl_on(v, flip, cc, r - 1):
+				_pl_side(side, Vector3(xa, y1, 0), Vector3(xb, y1, 0), Vector3.UP, T)
+			if not _pl_on(v, flip, cc, r + 1):
+				_pl_side(side, Vector3(xb, y0, 0), Vector3(xa, y0, 0), Vector3.DOWN, T)
+			if cc == 0 or not _pl_on(v, flip, cc - 1, r):
+				_pl_side(side, Vector3(xa, y0, 0), Vector3(xa, y1, 0), Vector3.LEFT, T)
+			if cc == cols - 1 or not _pl_on(v, flip, cc + 1, r):
+				_pl_side(side, Vector3(xb, y1, 0), Vector3(xb, y0, 0), Vector3.RIGHT, T)
+	top.generate_tangents()
+	var mesh: ArrayMesh = top.commit()
+	mesh.surface_set_material(0, mat_w)
+	side.commit(mesh)
+	if mesh.get_surface_count() > 1:
+		mesh.surface_set_material(1, _pl_side_mat)
+	return mesh
+
+
+func _pl_side(st: SurfaceTool, a: Vector3, b: Vector3, nrm: Vector3, t: float) -> void:
+	var q: Array = [a + Vector3(0, 0, t), b + Vector3(0, 0, t), b, a]
+	for idx in [0, 2, 1, 0, 3, 2]:
+		st.set_normal(nrm)
+		st.add_vertex(q[idx])
 
 
 func _wall_quad(st: SurfaceTool, v: Array, n: Vector3, uv: Array) -> void:

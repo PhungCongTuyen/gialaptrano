@@ -15,41 +15,85 @@ def pnoise(shape, scale, seed, sy=None):
     return (n - n.mean()) / n.std()
 
 def bricks(seed):
+    """Gạch xây tay: hàng dày mỏng khác nhau, lượn sóng; viên dài ngắn, nghiêng, sứt cạnh; mạch vữa không đều."""
+    from scipy import ndimage
     rng = np.random.default_rng(seed)
-    ch = 0.07 * PXM; bl = 0.23 * PXM; mt = 0.012 * PXM
-    yy, xx = np.mgrid[0:H, 0:W].astype(float)
-    row = np.floor(yy / ch).astype(int)
-    off = (row % 2) * bl * 0.5
-    col = np.floor((xx + off) / bl).astype(int)
-    lx = (xx + off) - col * bl; ly = yy - row * ch
-    d_edge = np.minimum(np.minimum(lx, bl - lx), np.minimum(ly, ch - ly))
-    brick = d_edge > mt * 0.5
-    # màu từng viên
-    nb = 4000
-    ids = (row * 131 + col * 17) % nb
+    S2 = 2                                     # vẽ gấp đôi rồi thu nhỏ
+    idimg = Image.new("I", (W * S2, H * S2), 0)
+    d = ImageDraw.Draw(idimg)
+    y = -rng.uniform(0, 0.06) * PXM * S2
+    nid = 0
+    info = {}
+    wave_ph = rng.uniform(0, 6.28)
+    while y < H * S2:
+        ch = rng.uniform(0.062, 0.078) * PXM * S2           # chiều cao hàng
+        gap_y = rng.uniform(0.008, 0.017) * PXM * S2
+        x = -rng.uniform(0, 0.25) * PXM * S2
+        while x < W * S2:
+            L = rng.choice([rng.uniform(0.2, 0.25), rng.uniform(0.2, 0.25), rng.uniform(0.2, 0.25), rng.uniform(0.1, 0.13)]) * PXM * S2
+            gap_x = rng.uniform(0.007, 0.02) * PXM * S2
+            h_b = ch - gap_y + rng.uniform(-0.004, 0.004) * PXM * S2
+            ang = rng.normal(0, 0.012)
+            cx = x + L / 2
+            cy = y + ch / 2 + math.sin(cx / (W * S2) * 6.28 * 1.3 + wave_ph + y * 0.002) * 0.006 * PXM * S2 + rng.normal(0, 0.0015 * PXM * S2)
+            # đa giác viên gạch: 4 góc bo + cạnh sứt
+            pts = []
+            hw_, hh_ = L / 2, h_b / 2
+            n_side = 10
+            corners = [(-hw_, -hh_), (hw_, -hh_), (hw_, hh_), (-hw_, hh_)]
+            for k in range(4):
+                (x0, y0), (x1, y1) = corners[k], corners[(k + 1) % 4]
+                for j in range(n_side):
+                    t = j / n_side
+                    px_, py_ = x0 + (x1 - x0) * t, y0 + (y1 - y0) * t
+                    # sứt mẻ: lõm vào ngẫu nhiên, nhiều ở góc
+                    cut = abs(rng.normal(0, 0.0012 * PXM * S2))
+                    if j == 0:
+                        cut += rng.uniform(0, 0.005) * PXM * S2
+                    nx_, ny_ = (y1 - y0), -(x1 - x0)
+                    ln = math.hypot(nx_, ny_) or 1
+                    px_ -= nx_ / ln * cut * -1 * -1
+                    py_ -= ny_ / ln * cut * -1 * -1
+                    pts.append((px_, py_))
+            ca, sa = math.cos(ang), math.sin(ang)
+            poly = [(cx + px_ * ca - py_ * sa, cy + px_ * sa + py_ * ca) for px_, py_ in pts]
+            nid += 1
+            d.polygon(poly, fill=nid)
+            info[nid] = L
+            x += L + gap_x
+        y += ch
+    ids = np.asarray(idimg.resize((W, H), Image.NEAREST)).astype(np.int64)
+    brick = ids > 0
+    dist = ndimage.distance_transform_edt(brick)          # khoảng cách tới mạch vữa (px)
+    nb = nid + 1
     base = np.array([0.74, 0.4, 0.24])
     tone = rng.normal(0, 0.025, (nb, 3)) + rng.normal(0, 0.055, (nb, 1))
     burnt = (rng.random(nb) < 0.08)[:, None] * np.array([-0.2, -0.12, -0.06])
     pale = (rng.random(nb) < 0.07)[:, None] * np.array([0.08, 0.1, 0.1])
     bc = np.clip(base + tone + burnt + pale, 0, 1)[ids]
     grain = pnoise((H, W), 160, seed + 1)[..., None] * 0.04 + rng.normal(0, 0.03, (H, W, 1))
-    bc = bc * (1 + grain) * (0.86 + 0.14 * np.clip(d_edge / (mt * 2.5), 0, 1))[..., None]
-    mort = np.array([0.6, 0.56, 0.5]) * (1 + 0.08 * pnoise((H, W), 90, seed + 2)[..., None])
+    bev = np.clip(dist / 3.0, 0, 1)
+    bc = bc * (1 + grain) * (0.8 + 0.2 * bev)[..., None]
+    mort = np.array([0.58, 0.55, 0.5]) * (1 + 0.1 * pnoise((H, W), 90, seed + 2)[..., None]) * (0.85 + 0.15 * rng.random((H, W, 1)))
     col_img = np.where(brick[..., None], bc, mort)
-    h = np.where(brick, 0.62 + 0.04 * np.clip(d_edge / mt, 0, 1), 0.38)
-    # lỗ gạch (gạch lỗ bị vỡ mặt): 2 lỗ tròn trên một số viên
+    h = np.where(brick, 0.55 + 0.1 * np.sqrt(bev), 0.25 + 0.06 * pnoise((H, W), 60, seed + 11))
+    # lỗ gạch (gạch lỗ vỡ mặt)
+    sel_ids = np.where(rng.random(nb) < 0.025)[0]
     holes = np.zeros((H, W), bool)
-    hv = rng.random(nb) < 0.022
-    cx_list = []
-    sel = hv[ids] & brick
-    # tâm viên
-    cxv = col * bl - off + bl / 2; cyv = row * ch + ch / 2
-    for k, dx in ((0, -bl * 0.2), (1, bl * 0.2)):
-        dd = (xx - (cxv + dx)) ** 2 + ((yy - cyv) * 1.0) ** 2
-        holes |= sel & (dd < (ch * 0.24) ** 2)
+    yy, xx = np.mgrid[0:H, 0:W]
+    for i in sel_ids:
+        m = ids == i
+        if m.sum() < 30:
+            continue
+        ys, xs = np.nonzero(m)
+        cy, cx, w_ = ys.mean(), xs.mean(), xs.max() - xs.min()
+        r = (ys.max() - ys.min()) * 0.24
+        for dx in (-w_ * 0.2, w_ * 0.2):
+            holes |= m & ((xx - cx - dx) ** 2 + (yy - cy) ** 2 < r * r)
     col_img = np.where(holes[..., None], np.array([0.12, 0.07, 0.05]), col_img)
-    h = np.where(holes, 0.1, h)
+    h = np.where(holes, 0.05, h)
     return col_img, h
+
 
 def paint_text(img_rgba, text, pos, size, color, rot, seed, sub=None):
     rng = np.random.default_rng(seed)
@@ -98,6 +142,11 @@ def variant(seed, coverage, texts):
     # lớp lót trắng xám lộ ra ở mép vỡ
     under = np.array([0.82, 0.8, 0.74])
     rim = plaster & (n < 0.12)
+    from scipy import ndimage
+    # bóng đổ của lớp vữa dày xuống gạch (nắng từ trên): dải tối ngay dưới / cạnh mép vữa
+    sh = ndimage.shift(plaster.astype(float), (0.035 * PXM, 0.012 * PXM), order=0)
+    sh = ndimage.gaussian_filter(np.maximum(sh, ndimage.binary_dilation(plaster, iterations=4).astype(float)), 3)
+    bc = bc * (1 - 0.45 * sh * (~plaster))[..., None]
     col = np.where(plaster[..., None], np.where(rim[..., None], under, pc), bc)
     h = np.where(plaster, 1.0, bh)
     img = Image.fromarray((np.clip(col, 0, 1) * 255).astype(np.uint8)).convert("RGBA")
@@ -132,17 +181,20 @@ def variant(seed, coverage, texts):
     out = np.asarray(img.convert("RGB")).astype(float) / 255
     damp = np.clip((yy - 0.78) * 4.5 + 0.3 * pnoise((H, W), 10, seed + 8), 0, 1)[..., None]
     out = out * (1 - 0.35 * damp) + np.array([0.2, 0.24, 0.12]) * 0.35 * damp
-    return out, h
+    return out, h, plaster
 
-atlas = np.zeros((H * 2, W * 2, 3)); hat = np.zeros((H * 2, W * 2))
+atlas = np.zeros((H * 2, W * 2, 3)); hat = np.zeros((H * 2, W * 2)); mat_ = np.zeros((H * 2, W * 2), bool)
 specs = [(11, 0.55, [TEXTS[0]]), (23, 0.35, [TEXTS[1]]), (37, 0.15, []), (51, 0.7, [TEXTS[2], TEXTS[4]])]
 for i, (sd, cov, tx) in enumerate(specs):
-    c, h = variant(sd, cov, tx)
+    c, h, pm = variant(sd, cov, tx)
     r, k = divmod(i, 2)
     atlas[r * H:(r + 1) * H, k * W:(k + 1) * W] = c; hat[r * H:(r + 1) * H, k * W:(k + 1) * W] = h
+    mat_[r * H:(r + 1) * H, k * W:(k + 1) * W] = pm
 Image.fromarray((np.clip(atlas, 0, 1) * 255).astype(np.uint8)).save("tuong_gach.jpg", quality=90)
 gx = (np.roll(hat, -1, 1) - np.roll(hat, 1, 1)) * 0.5; gy = (np.roll(hat, -1, 0) - np.roll(hat, 1, 0)) * 0.5
 nx, ny, nz = -gx * 4, gy * 4, np.ones_like(hat); L = np.sqrt(nx ** 2 + ny ** 2 + nz ** 2)
 Image.fromarray(((np.stack([nx / L, ny / L, nz / L], -1) * 0.5 + 0.5) * 255).astype(np.uint8)).save("tuong_gach_normal.png")
 Image.fromarray((np.clip(atlas, 0, 1) * 255).astype(np.uint8)).resize((1024, 820)).save("prev.png")
+# mặt nạ vữa cho Godot dựng khối vữa nổi: mỗi ô 200x160 điểm (2 cm / điểm), atlas 400x320
+Image.fromarray((mat_ * 255).astype(np.uint8)).resize((400, 320), Image.BOX).point(lambda v: 255 if v >= 128 else 0).save("tuong_vua_mask.png")
 print("ok")

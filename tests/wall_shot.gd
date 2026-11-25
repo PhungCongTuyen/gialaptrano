@@ -20,7 +20,8 @@ func _ready() -> void:
 	for s in [["wall_1", 10 * 60, Vector3(-hw + 5.0, 1.6, 0.0), Vector3(-hw, 1.8, -2.0)],
 			["wall_2", 15 * 60, Vector3(0.0, 1.6, hd - 6.0), Vector3(-6.0, 1.6, hd)],
 			["wall_corner", 9 * 60, Vector3(hw - 9.0, 1.7, -hd + 8.0), Vector3(hw, 1.5, -hd)],
-			["tree_under", 11 * 60, m._m(470, 258) + Vector3(1.0, 1.6, 1.0), m._m(470, 258) + Vector3(-0.5, 7.0, -0.8)]]:
+			["wall_close", 9 * 60, Vector3(-hw + 1.3, 1.5, 0.6), Vector3(-hw, 1.75, -0.4)],
+			["wall_graze", 8 * 60, Vector3(-hw + 0.5, 1.6, 4.0), Vector3(-hw + 0.05, 1.6, -2.0)]]:
 		g.minutes = float(s[1])
 		m._apply_time()
 		m._update_world_force()
