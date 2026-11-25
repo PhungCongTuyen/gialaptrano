@@ -3,3 +3,5 @@
 *.wav binary
 *.xlsx binary
 *.ogv binary
+*.blend binary
+*.glb binary

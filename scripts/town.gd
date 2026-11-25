@@ -398,7 +398,25 @@ func build_motorbike(pos: Vector3, yaw: float) -> void:
 	r.add_child(b)
 
 
+const STOOL_MODELS: Array = ["res://models/ban_ghe/ghe_nhua_do.glb", "res://models/ban_ghe/ghe_nhua_xanh.glb", "res://models/ban_ghe/ghe_nhua_xanh_la.glb"]
+const TABLE_MODEL: String = "res://models/ban_ghe/ban_nhua.glb"
+
+
+func _place_model(parent: Node3D, path: String, pos: Vector3, yaw: float) -> bool:
+	if not ResourceLoader.exists(path):
+		return false
+	var ps: PackedScene = load(path)
+	if ps == null:
+		return false
+	var n: Node3D = ps.instantiate()
+	n.position = pos
+	n.rotation = Vector3(0, yaw, 0)
+	parent.add_child(n)
+	return true
+
+
 func build_stools(center: Vector3, yaw: float) -> void:
+	# Bộ bàn ghế nhựa vỉa hè: dùng model Blender (models/ban_ghe), thiếu file thì dựng khối đơn giản.
 	var r: Node3D = Node3D.new()
 	r.position = center
 	r.rotation = Vector3(0, yaw, 0)
@@ -406,17 +424,20 @@ func build_stools(center: Vector3, yaw: float) -> void:
 	var cols: Array = [Color(0.85, 0.15, 0.15), Color(0.15, 0.35, 0.8), Color(0.95, 0.75, 0.1)]
 	for t in 2:
 		var tx: float = -1.2 + float(t) * 2.4
-		var tc: Color = cols[rng.randi_range(0, 2)]
-		deco(r, Vector3(0.7, 0.04, 0.7), Vector3(tx, 0.5, 0), mat(tc, 0.5))
-		for lx in [-0.3, 0.3]:
-			for lz in [-0.3, 0.3]:
-				deco(r, Vector3(0.04, 0.5, 0.04), Vector3(tx + lx, 0.25, lz), mat(tc, 0.5))
+		if not _place_model(r, TABLE_MODEL, Vector3(tx, 0, 0), rng.randf_range(-0.15, 0.15)):
+			var tc: Color = cols[rng.randi_range(0, 2)]
+			deco(r, Vector3(0.7, 0.04, 0.7), Vector3(tx, 0.5, 0), mat(tc, 0.5))
+			for lx in [-0.3, 0.3]:
+				for lz in [-0.3, 0.3]:
+					deco(r, Vector3(0.04, 0.5, 0.04), Vector3(tx + lx, 0.25, lz), mat(tc, 0.5))
 		for s in 4:
-			var ang: float = float(s) * PI / 2.0 + 0.3
-			var sp: Vector3 = Vector3(tx + cos(ang) * 0.65, 0, sin(ang) * 0.65)
-			var sc: Color = cols[rng.randi_range(0, 2)]
-			deco(r, Vector3(0.32, 0.04, 0.32), sp + Vector3(0, 0.3, 0), mat(sc, 0.5))
-			cyl(r, 0.14, 0.17, 0.28, sp + Vector3(0, 0.14, 0), mat(sc, 0.5))
+			var ang: float = float(s) * PI / 2.0 + 0.3 + rng.randf_range(-0.25, 0.25)
+			var dist: float = rng.randf_range(0.5, 0.62)
+			var sp: Vector3 = Vector3(tx + cos(ang) * dist, 0, sin(ang) * dist)
+			if not _place_model(r, STOOL_MODELS[rng.randi_range(0, 2)], sp, rng.randf_range(0.0, TAU)):
+				var sc: Color = cols[rng.randi_range(0, 2)]
+				deco(r, Vector3(0.32, 0.04, 0.32), sp + Vector3(0, 0.3, 0), mat(sc, 0.5))
+				cyl(r, 0.14, 0.17, 0.28, sp + Vector3(0, 0.14, 0), mat(sc, 0.5))
 
 
 func build_tree(pos: Vector3) -> void:
