@@ -1178,179 +1178,110 @@ func add_trash_bits(vis: Node3D, R: float, H: float, r: RandomNumberGenerator) -
 
 const WALL_H: float = 3.2         # cao tường
 const WALL_T: float = 0.22        # dày tường
-const WALL_SEG: float = 4.0       # mỗi đoạn 4 m ứng với 1 ô trong atlas 2x2 (textures/tuong)
+const BRICK_TILE_M: float = 16.0  # gạch nền lặp liền mạch mỗi 16 m
 
 
-## Dựng tường gạch quanh hình chữ nhật (hw, hd = nửa rộng, nửa sâu). Mặt trong dùng 4 biến thể ngẫu nhiên
-## (vữa bong, giấy dán, chữ quảng cáo vẽ tay), có lật ngang để bớt lặp; đỉnh tường trát xi măng.
+## Tường gạch cũ liền một dải quanh 4 cạnh phố (tạo bằng tools/tao_tuong_lien.py):
+## gạch nền xây tay + lớp ố/bóng/ẩm riêng từng cạnh (không lặp), khối vữa nhiều tầng nổi khỏi gạch
+## (lót trắng mỏng, vữa vàng, lớp sơn), chữ quảng cáo vẽ tay rải dọc tường.
 func build_perimeter_wall(hw: float, hd: float) -> void:
-	var mat_w: StandardMaterial3D = StandardMaterial3D.new()
-	if ResourceLoader.exists("res://textures/tuong/tuong_gach.jpg"):
-		mat_w.albedo_texture = load("res://textures/tuong/tuong_gach.jpg")
-		mat_w.normal_enabled = true
-		mat_w.normal_texture = load("res://textures/tuong/tuong_gach_normal.png")
-		mat_w.normal_scale = 1.2
-	else:
-		mat_w.albedo_color = Color(0.7, 0.36, 0.22)
-	mat_w.roughness = 0.92
-	mat_w.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-	var st: SurfaceTool = SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var wr: RandomNumberGenerator = RandomNumberGenerator.new()
-	wr.seed = 3204
-	# 4 cạnh: điểm đầu, điểm cuối, pháp tuyến hướng vào trong phố
 	var sides: Array = [
 		[Vector3(-hw, 0, -hd), Vector3(hw, 0, -hd), Vector3(0, 0, 1)],
 		[Vector3(hw, 0, -hd), Vector3(hw, 0, hd), Vector3(-1, 0, 0)],
 		[Vector3(hw, 0, hd), Vector3(-hw, 0, hd), Vector3(0, 0, -1)],
 		[Vector3(-hw, 0, hd), Vector3(-hw, 0, -hd), Vector3(1, 0, 0)],
 	]
-	for sd in sides:
-		var a: Vector3 = sd[0]
-		var b: Vector3 = sd[1]
-		var n: Vector3 = sd[2]
+	var white: StandardMaterial3D = StandardMaterial3D.new()
+	white.albedo_color = Color(0.82, 0.8, 0.74)   # vữa lót xám trắng
+	white.roughness = 1.0
+	var decals: Array = []
+	if FileAccess.file_exists("res://textures/tuong/chu_son.json"):
+		decals = JSON.parse_string(FileAccess.get_file_as_string("res://textures/tuong/chu_son.json"))
+	for i in sides.size():
+		var a: Vector3 = sides[i][0]
+		var b: Vector3 = sides[i][1]
+		var n: Vector3 = sides[i][2]
 		var length: float = a.distance_to(b)
 		var dir: Vector3 = (b - a) / length
-		var segs: int = maxi(1, int(ceil(length / WALL_SEG)))
-		for i in segs:
-			var p0: Vector3 = a + dir * (float(i) * WALL_SEG)
-			var p1: Vector3 = a + dir * minf(float(i + 1) * WALL_SEG, length)
-			var frac: float = p0.distance_to(p1) / WALL_SEG
-			var v: int = wr.randi_range(0, 3)
-			var u0: float = float(v % 2) * 0.5
-			var v0: float = float(v / 2) * 0.5
-			var flip: bool = v == 2 and wr.randf() < 0.5  # chỉ lật ô không có chữ
-			var ua: float = u0 + (0.5 - 0.5 * frac if flip else 0.0)
-			var ub: float = ua + 0.5 * frac
-			if flip:
-				var tmp: float = ua
-				ua = ub
-				ub = tmp
-			var q0: Vector3 = p0 + n * WALL_T * 0.0
-			var q1: Vector3 = p1
-			# mặt trong
-			_wall_quad(st, [q0 + Vector3(0, WALL_H, 0), q1 + Vector3(0, WALL_H, 0), q1, q0], n,
-					[Vector2(ua, v0), Vector2(ub, v0), Vector2(ub, v0 + 0.5), Vector2(ua, v0 + 0.5)])
-			# đỉnh tường (trát vữa, lấy mảng vữa ở mép trên ô)
-			var o0: Vector3 = q0 - n * WALL_T
-			var o1: Vector3 = q1 - n * WALL_T
-			_wall_quad(st, [o0 + Vector3(0, WALL_H, 0), o1 + Vector3(0, WALL_H, 0), q1 + Vector3(0, WALL_H, 0), q0 + Vector3(0, WALL_H, 0)], Vector3.UP,
-					[Vector2(ua, v0 + 0.002), Vector2(ub, v0 + 0.002), Vector2(ub, v0 + 0.02), Vector2(ua, v0 + 0.02)])
-			# mặt ngoài (ít khi thấy)
-			_wall_quad(st, [o1 + Vector3(0, WALL_H, 0), o0 + Vector3(0, WALL_H, 0), o0, o1], -n,
-					[Vector2(ub, v0), Vector2(ua, v0), Vector2(ua, v0 + 0.5), Vector2(ub, v0 + 0.5)])
-			# lớp vữa trát dày, nổi khỏi mặt gạch
-			_add_plaster(v, flip, p0, dir, n, p0.distance_to(p1), mat_w)
-	st.generate_tangents()
-	var mi: MeshInstance3D = MeshInstance3D.new()
-	mi.mesh = st.commit()
-	mi.material_override = mat_w
-	add_child(mi)
-
-
-# ---- lớp vữa trát nổi (khối dày 2,5 cm dựng từ mặt nạ textures/tuong/tuong_vua_mask.png)
-const PLASTER_T: float = 0.025
-const PL_COLS: int = 200        # điểm mặt nạ theo chiều ngang mỗi ô (2 cm / điểm)
-const PL_ROWS: int = 160
-var _pl_mask: Image
-var _pl_cache: Dictionary = {}
-var _pl_side_mat: StandardMaterial3D
-
-
-func _add_plaster(v: int, flip: bool, p0: Vector3, dir: Vector3, n: Vector3, length: float, mat_w: Material) -> void:
-	if _pl_mask == null:
-		if not ResourceLoader.exists("res://textures/tuong/tuong_vua_mask.png"):
-			return
-		_pl_mask = (load("res://textures/tuong/tuong_vua_mask.png") as Texture2D).get_image()
-		_pl_side_mat = StandardMaterial3D.new()
-		_pl_side_mat.albedo_color = Color(0.8, 0.78, 0.71)  # vữa lót xám trắng ở mép vỡ
-		_pl_side_mat.roughness = 1.0
-	var cols: int = clampi(int(round(length / WALL_SEG * float(PL_COLS))), 1, PL_COLS)
-	var key: String = "%d_%s_%d" % [v, flip, cols]
-	if not _pl_cache.has(key):
-		_pl_cache[key] = _plaster_mesh(v, flip, cols, mat_w)
-	var mi: MeshInstance3D = MeshInstance3D.new()
-	mi.mesh = _pl_cache[key]
-	mi.transform = Transform3D(Basis(dir, Vector3.UP, n), p0)
-	add_child(mi)
-
-
-func _pl_on(v: int, flip: bool, c: int, r: int) -> bool:
-	if c < 0 or c >= PL_COLS or r < 0 or r >= PL_ROWS:
-		return false
-	var cc: int = (PL_COLS - 1 - c) if flip else c
-	var ox: int = (v % 2) * PL_COLS
-	var oy: int = (v / 2) * PL_ROWS
-	return _pl_mask.get_pixel(ox + cc, oy + r).r > 0.5
-
-
-## Khối vữa: mặt trên ghép thành dải theo từng hàng (ít tam giác), thành bên dựng ở mọi mép vỡ.
-## Toạ độ cục bộ: x dọc tường, y lên trên, z hướng vào phố.
-func _plaster_mesh(v: int, flip: bool, cols: int, mat_w: Material) -> ArrayMesh:
-	var cw: float = WALL_SEG / float(PL_COLS)
-	var rh: float = WALL_H / float(PL_ROWS)
-	var u0: float = float(v % 2) * 0.5
-	var v0: float = float(v / 2) * 0.5
-	var top: SurfaceTool = SurfaceTool.new()
-	top.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var side: SurfaceTool = SurfaceTool.new()
-	side.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var T: float = PLASTER_T
-	var uvf: Callable = func(x: float, y: float) -> Vector2:
-		var ux: float = x / WALL_SEG
-		if flip:
-			ux = 1.0 - ux
-		return Vector2(u0 + ux * 0.5, v0 + (1.0 - y / WALL_H) * 0.5)
-	for r in PL_ROWS:
-		var y1: float = WALL_H - float(r) * rh
-		var y0: float = y1 - rh
-		var c: int = 0
-		while c < cols:
-			if not _pl_on(v, flip, c, r):
-				c += 1
+		var root: Node3D = Node3D.new()
+		root.transform = Transform3D(Basis(dir, Vector3.UP, n), a)  # x dọc tường, y lên, z ra phố
+		add_child(root)
+		# gạch nền: mặt trong, đỉnh, mặt ngoài
+		var mat_b: StandardMaterial3D = StandardMaterial3D.new()
+		if ResourceLoader.exists("res://textures/tuong/gach_nen.jpg"):
+			mat_b.albedo_texture = load("res://textures/tuong/gach_nen.jpg")
+			mat_b.normal_enabled = true
+			mat_b.normal_texture = load("res://textures/tuong/gach_nen_normal.png")
+			mat_b.normal_scale = 1.2
+		else:
+			mat_b.albedo_color = Color(0.7, 0.36, 0.22)
+		var ban: String = "res://textures/tuong/tuong_ban_%d.png" % i
+		if ResourceLoader.exists(ban):
+			mat_b.detail_enabled = true
+			mat_b.detail_uv_layer = BaseMaterial3D.DETAIL_UV_2
+			mat_b.detail_blend_mode = BaseMaterial3D.BLEND_MODE_MUL
+			mat_b.detail_albedo = load(ban)
+		mat_b.roughness = 0.92
+		mat_b.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+		var st: SurfaceTool = SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		var ur: float = length / BRICK_TILE_M
+		_wall_quad(st, [Vector3(0, WALL_H, 0), Vector3(length, WALL_H, 0), Vector3(length, 0, 0), Vector3(0, 0, 0)], Vector3.BACK,
+				[Vector2(0, 0), Vector2(ur, 0), Vector2(ur, 1), Vector2(0, 1)], [Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)])
+		_wall_quad(st, [Vector3(0, WALL_H, -WALL_T), Vector3(length, WALL_H, -WALL_T), Vector3(length, WALL_H, 0), Vector3(0, WALL_H, 0)], Vector3.UP,
+				[Vector2(0, 0), Vector2(ur, 0), Vector2(ur, 0.02), Vector2(0, 0.02)], [Vector2(0, 0), Vector2(1, 0), Vector2(1, 0.01), Vector2(0, 0.01)])
+		_wall_quad(st, [Vector3(length, WALL_H, -WALL_T), Vector3(0, WALL_H, -WALL_T), Vector3(0, 0, -WALL_T), Vector3(length, 0, -WALL_T)], Vector3.FORWARD,
+				[Vector2(ur, 0), Vector2(0, 0), Vector2(0, 1), Vector2(ur, 1)], [Vector2(1, 0), Vector2(0, 0), Vector2(0, 1), Vector2(1, 1)])
+		st.generate_tangents()
+		var wmi: MeshInstance3D = MeshInstance3D.new()
+		wmi.mesh = st.commit()
+		wmi.material_override = mat_b
+		root.add_child(wmi)
+		# khối vữa nhiều tầng
+		var gp: String = "res://models/tuong/tuong_canh_%d.glb" % i
+		if ResourceLoader.exists(gp):
+			var yellow: StandardMaterial3D = StandardMaterial3D.new()
+			yellow.albedo_texture = load("res://textures/tuong/vua_mau_%d.jpg" % i)
+			yellow.roughness = 0.95
+			yellow.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+			var midm: StandardMaterial3D = StandardMaterial3D.new()
+			midm.albedo_texture = yellow.albedo_texture
+			midm.albedo_color = Color(0.86, 0.8, 0.72)   # lớp vữa trát be sẫm hơn lớp sơn
+			midm.roughness = 1.0
+			var pl: Node3D = (load(gp) as PackedScene).instantiate()
+			root.add_child(pl)
+			for mi in pl.find_children("*", "MeshInstance3D", true, false):
+				var m: MeshInstance3D = mi
+				for k in m.mesh.get_surface_count():
+					var sm: Material = m.mesh.surface_get_material(k)
+					var nm: String = sm.resource_name if sm != null else ""
+					if nm.begins_with("VuaVang"):
+						m.set_surface_override_material(k, yellow)
+					elif nm.begins_with("VuaNen"):
+						m.set_surface_override_material(k, midm)
+					else:
+						m.set_surface_override_material(k, white)
+		# chữ sơn vẽ tay (trên lớp sơn trên cùng)
+		for dcl in decals:
+			if int(dcl["side"]) != i:
 				continue
-			var c0: int = c
-			while c < cols and _pl_on(v, flip, c, r):
-				c += 1
-			var x0: float = float(c0) * cw
-			var x1: float = float(c) * cw
-			var q: Array = [Vector3(x0, y1, T), Vector3(x1, y1, T), Vector3(x1, y0, T), Vector3(x0, y0, T)]
-			for idx in [0, 2, 1, 0, 3, 2]:
-				top.set_normal(Vector3.BACK)
-				top.set_uv(uvf.call(q[idx].x, q[idx].y))
-				top.add_vertex(q[idx])
-		# thành bên: trên/dưới của từng ô, trái/phải
-		for cc in cols:
-			if not _pl_on(v, flip, cc, r):
-				continue
-			var xa: float = float(cc) * cw
-			var xb: float = xa + cw
-			if not _pl_on(v, flip, cc, r - 1):
-				_pl_side(side, Vector3(xa, y1, 0), Vector3(xb, y1, 0), Vector3.UP, T)
-			if not _pl_on(v, flip, cc, r + 1):
-				_pl_side(side, Vector3(xb, y0, 0), Vector3(xa, y0, 0), Vector3.DOWN, T)
-			if cc == 0 or not _pl_on(v, flip, cc - 1, r):
-				_pl_side(side, Vector3(xa, y0, 0), Vector3(xa, y1, 0), Vector3.LEFT, T)
-			if cc == cols - 1 or not _pl_on(v, flip, cc + 1, r):
-				_pl_side(side, Vector3(xb, y1, 0), Vector3(xb, y0, 0), Vector3.RIGHT, T)
-	top.generate_tangents()
-	var mesh: ArrayMesh = top.commit()
-	mesh.surface_set_material(0, mat_w)
-	side.commit(mesh)
-	if mesh.get_surface_count() > 1:
-		mesh.surface_set_material(1, _pl_side_mat)
-	return mesh
+			var q: MeshInstance3D = MeshInstance3D.new()
+			var qm: QuadMesh = QuadMesh.new()
+			qm.size = Vector2(float(dcl["w"]), float(dcl["h"]))
+			q.mesh = qm
+			var dm: StandardMaterial3D = StandardMaterial3D.new()
+			dm.albedo_texture = load("res://textures/tuong/" + str(dcl["file"]))
+			dm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS
+			dm.roughness = 0.8
+			q.material_override = dm
+			q.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			q.position = Vector3(float(dcl["x"]) + float(dcl["w"]) / 2.0, float(dcl["y"]) + float(dcl["h"]) / 2.0, 0.0258)
+			root.add_child(q)
 
 
-func _pl_side(st: SurfaceTool, a: Vector3, b: Vector3, nrm: Vector3, t: float) -> void:
-	var q: Array = [a + Vector3(0, 0, t), b + Vector3(0, 0, t), b, a]
-	for idx in [0, 2, 1, 0, 3, 2]:
-		st.set_normal(nrm)
-		st.add_vertex(q[idx])
-
-
-func _wall_quad(st: SurfaceTool, v: Array, n: Vector3, uv: Array) -> void:
+func _wall_quad(st: SurfaceTool, v: Array, n: Vector3, uv: Array, uv2: Array) -> void:
 	for idx in [0, 1, 2, 0, 2, 3]:
 		st.set_normal(n)
 		st.set_uv(uv[idx])
+		st.set_uv2(uv2[idx])
 		st.add_vertex(v[idx])

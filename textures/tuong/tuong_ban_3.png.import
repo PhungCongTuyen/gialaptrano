@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dxykeagtmisas"
-path="res://.godot/imported/tuong_gach_normal.png-0a0c83abe9acf669bc470bea853a7251.ctex"
+uid="uid://dktk3kksx07ea"
+path="res://.godot/imported/tuong_ban_3.png-9cc7b1bf88543de77f65f4a9024a6d01.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://textures/tuong/tuong_gach_normal.png"
-dest_files=["res://.godot/imported/tuong_gach_normal.png-0a0c83abe9acf669bc470bea853a7251.ctex"]
+source_file="res://textures/tuong/tuong_ban_3.png"
+dest_files=["res://.godot/imported/tuong_ban_3.png-9cc7b1bf88543de77f65f4a9024a6d01.ctex"]
 
 [params]
 
@@ -21,7 +21,7 @@ compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
-compress/normal_map=1
+compress/normal_map=0
 compress/channel_pack=0
 mipmaps/generate=true
 mipmaps/limit=-1

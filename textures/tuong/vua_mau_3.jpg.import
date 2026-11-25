@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c6doledbarg1i"
-path="res://.godot/imported/tuong_gach.jpg-a3376b842dd63d83c3d6b624da8af164.ctex"
+uid="uid://cuwldpf633l2k"
+path="res://.godot/imported/vua_mau_3.jpg-219ab36514137907978803288e44d549.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://textures/tuong/tuong_gach.jpg"
-dest_files=["res://.godot/imported/tuong_gach.jpg-a3376b842dd63d83c3d6b624da8af164.ctex"]
+source_file="res://textures/tuong/vua_mau_3.jpg"
+dest_files=["res://.godot/imported/vua_mau_3.jpg-219ab36514137907978803288e44d549.ctex"]
 
 [params]
 

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bxmx8py7jf6xn"
-path="res://.godot/imported/tuong_vua_mask.png-47ac38c9aa5aaf3dc0551ae1fa43f67e.ctex"
+uid="uid://clsaqodbqc0wy"
+path="res://.godot/imported/chu_son_3.png-debf479bbea754e28b771cd9eff3befd.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://textures/tuong/tuong_vua_mask.png"
-dest_files=["res://.godot/imported/tuong_vua_mask.png-47ac38c9aa5aaf3dc0551ae1fa43f67e.ctex"]
+source_file="res://textures/tuong/chu_son_3.png"
+dest_files=["res://.godot/imported/chu_son_3.png-debf479bbea754e28b771cd9eff3befd.ctex"]
 
 [params]
 
@@ -23,7 +23,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=false
+mipmaps/generate=true
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""
@@ -37,4 +37,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=0
+detect_3d/compress_to=1
