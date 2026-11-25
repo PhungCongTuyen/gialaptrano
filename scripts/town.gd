@@ -1172,3 +1172,82 @@ func add_trash_bits(vis: Node3D, R: float, H: float, r: RandomNumberGenerator) -
 				mi.rotation = Vector3(r.randf_range(1.2, 1.5), r.randf() * TAU, 0)
 		mi.position = p
 		vis.add_child(mi)
+
+
+# ====================================================================== tường gạch bao quanh khu phố
+
+const WALL_H: float = 3.2         # cao tường
+const WALL_T: float = 0.22        # dày tường
+const WALL_SEG: float = 4.0       # mỗi đoạn 4 m ứng với 1 ô trong atlas 2x2 (textures/tuong)
+
+
+## Dựng tường gạch quanh hình chữ nhật (hw, hd = nửa rộng, nửa sâu). Mặt trong dùng 4 biến thể ngẫu nhiên
+## (vữa bong, giấy dán, chữ quảng cáo vẽ tay), có lật ngang để bớt lặp; đỉnh tường trát xi măng.
+func build_perimeter_wall(hw: float, hd: float) -> void:
+	var mat_w: StandardMaterial3D = StandardMaterial3D.new()
+	if ResourceLoader.exists("res://textures/tuong/tuong_gach.jpg"):
+		mat_w.albedo_texture = load("res://textures/tuong/tuong_gach.jpg")
+		mat_w.normal_enabled = true
+		mat_w.normal_texture = load("res://textures/tuong/tuong_gach_normal.png")
+		mat_w.normal_scale = 1.2
+	else:
+		mat_w.albedo_color = Color(0.7, 0.36, 0.22)
+	mat_w.roughness = 0.92
+	mat_w.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	var st: SurfaceTool = SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var wr: RandomNumberGenerator = RandomNumberGenerator.new()
+	wr.seed = 3204
+	# 4 cạnh: điểm đầu, điểm cuối, pháp tuyến hướng vào trong phố
+	var sides: Array = [
+		[Vector3(-hw, 0, -hd), Vector3(hw, 0, -hd), Vector3(0, 0, 1)],
+		[Vector3(hw, 0, -hd), Vector3(hw, 0, hd), Vector3(-1, 0, 0)],
+		[Vector3(hw, 0, hd), Vector3(-hw, 0, hd), Vector3(0, 0, -1)],
+		[Vector3(-hw, 0, hd), Vector3(-hw, 0, -hd), Vector3(1, 0, 0)],
+	]
+	for sd in sides:
+		var a: Vector3 = sd[0]
+		var b: Vector3 = sd[1]
+		var n: Vector3 = sd[2]
+		var length: float = a.distance_to(b)
+		var dir: Vector3 = (b - a) / length
+		var segs: int = maxi(1, int(ceil(length / WALL_SEG)))
+		for i in segs:
+			var p0: Vector3 = a + dir * (float(i) * WALL_SEG)
+			var p1: Vector3 = a + dir * minf(float(i + 1) * WALL_SEG, length)
+			var frac: float = p0.distance_to(p1) / WALL_SEG
+			var v: int = wr.randi_range(0, 3)
+			var u0: float = float(v % 2) * 0.5
+			var v0: float = float(v / 2) * 0.5
+			var flip: bool = v == 2 and wr.randf() < 0.5  # chỉ lật ô không có chữ
+			var ua: float = u0 + (0.5 - 0.5 * frac if flip else 0.0)
+			var ub: float = ua + 0.5 * frac
+			if flip:
+				var tmp: float = ua
+				ua = ub
+				ub = tmp
+			var q0: Vector3 = p0 + n * WALL_T * 0.0
+			var q1: Vector3 = p1
+			# mặt trong
+			_wall_quad(st, [q0 + Vector3(0, WALL_H, 0), q1 + Vector3(0, WALL_H, 0), q1, q0], n,
+					[Vector2(ua, v0), Vector2(ub, v0), Vector2(ub, v0 + 0.5), Vector2(ua, v0 + 0.5)])
+			# đỉnh tường (trát vữa, lấy mảng vữa ở mép trên ô)
+			var o0: Vector3 = q0 - n * WALL_T
+			var o1: Vector3 = q1 - n * WALL_T
+			_wall_quad(st, [o0 + Vector3(0, WALL_H, 0), o1 + Vector3(0, WALL_H, 0), q1 + Vector3(0, WALL_H, 0), q0 + Vector3(0, WALL_H, 0)], Vector3.UP,
+					[Vector2(ua, v0 + 0.002), Vector2(ub, v0 + 0.002), Vector2(ub, v0 + 0.02), Vector2(ua, v0 + 0.02)])
+			# mặt ngoài (ít khi thấy)
+			_wall_quad(st, [o1 + Vector3(0, WALL_H, 0), o0 + Vector3(0, WALL_H, 0), o0, o1], -n,
+					[Vector2(ub, v0), Vector2(ua, v0), Vector2(ua, v0 + 0.5), Vector2(ub, v0 + 0.5)])
+	st.generate_tangents()
+	var mi: MeshInstance3D = MeshInstance3D.new()
+	mi.mesh = st.commit()
+	mi.material_override = mat_w
+	add_child(mi)
+
+
+func _wall_quad(st: SurfaceTool, v: Array, n: Vector3, uv: Array) -> void:
+	for idx in [0, 1, 2, 0, 2, 3]:
+		st.set_normal(n)
+		st.set_uv(uv[idx])
+		st.add_vertex(v[idx])

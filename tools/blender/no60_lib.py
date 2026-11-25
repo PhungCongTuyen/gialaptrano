@@ -662,7 +662,7 @@ def _rot_about(v, axis, ang):
     return (Matrix.Rotation(ang, 3, axis) @ v).normalized()
 
 
-def build_tree_cay(sc, name, seed, bark_mat, leaf_mat, n_fill=2300):
+def build_tree_cay(sc, name, seed, bark_mat, leaf_mat, n_fill=3300, n_under=1300):
     import random
     rng = random.Random(seed)
     bm_b = bmesh.new(); uvb = bm_b.loops.layers.uv.new("UVMap")
@@ -723,15 +723,28 @@ def build_tree_cay(sc, name, seed, bark_mat, leaf_mat, n_fill=2300):
             continue
         p = C + Vector((v.x * RX, v.y * RX, v.z * RZ))
         spots.append((p, r))
+    # lớp lá che đáy và lòng tán (nhìn từ gốc lên không còn thấy trời qua kẽ lá)
+    under = []
+    while len(under) < n_under:
+        v = Vector((rng.uniform(-1, 1), rng.uniform(-1, 1), rng.uniform(-0.62, 0.75)))
+        r = v.length
+        if r > 0.95 or r < 0.2:
+            continue
+        p = C + Vector((v.x * RX, v.y * RX, v.z * RZ))
+        under.append(p)
     for p in tips:
         q = p - C
         r = math.sqrt((q.x / RX) ** 2 + (q.y / RX) ** 2 + (q.z / RZ) ** 2)
         for k in range(3):
             spots.append((p + Vector((rng.uniform(-.2, .2), rng.uniform(-.2, .2), rng.uniform(-.2, .1))), min(r, 1.0)))
-    for p, r in spots:
+    spots = [(p, r, False) for p, r in spots] + [(p, 0.35, True) for p in under]
+    for p, r, flat in spots:
         out = Vector(((p - C).x / RX, (p - C).y / RX, (p - C).z / RZ))
         out = out.normalized() if out.length > 1e-4 else Vector((0, 0, 1))
-        d = (out * 0.75 + Vector((0, 0, -rng.uniform(0.35, 1.0)))).normalized()
+        if flat:   # lá nằm gần ngang, hơi rủ: che kín khi nhìn từ dưới lên
+            d = Vector((rng.uniform(-1, 1), rng.uniform(-1, 1), rng.uniform(-0.35, 0.05))).normalized()
+        else:
+            d = (out * 0.75 + Vector((0, 0, -rng.uniform(0.35, 1.0)))).normalized()
         d = _rot_about(d, Vector((0, 0, 1)), rng.uniform(-0.9, 0.9))
         side = d.cross(Vector((0, 0, 1)))
         side = side.normalized() if side.length > 1e-4 else Vector((1, 0, 0))
@@ -739,12 +752,14 @@ def build_tree_cay(sc, name, seed, bark_mat, leaf_mat, n_fill=2300):
         nrm = side.cross(d).normalized()
         if nrm.z < 0:
             nrm = -nrm
-        L = rng.uniform(0.5, 0.78); W = L * 0.5
+        L = rng.uniform(0.5, 0.78) * (1.15 if flat else 1.0); W = L * 0.5
         top_zone = out.z > 0.55
         var = rng.choices([0, 1, 2], weights=[0.5, 0.35, 0.15 + (0.25 if top_zone else 0.0)])[0]
         u0, u1 = var / 3.0, (var + 1) / 3.0
         sag = rng.uniform(0.05, 0.14)
         bright = (0.5 + 0.6 * max(0.0, r - 0.45) / 0.55 + (0.12 if out.z > 0.3 else 0.0)) * rng.uniform(0.9, 1.08)
+        if flat:
+            bright = rng.uniform(0.42, 0.62)  # lòng tán tối hơn
         rows = []
         for s_ in range(4):
             t = s_ / 3.0

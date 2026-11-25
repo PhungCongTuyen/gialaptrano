@@ -420,6 +420,7 @@ func _build_street() -> void:
 	_invisible_wall(Vector3(hw + 0.5, 3, 0), Vector3(1, 6, hd * 2.0))
 	_invisible_wall(Vector3(0, 3, -hd - 0.5), Vector3(hw * 2.0, 6, 1))
 	_invisible_wall(Vector3(0, 3, hd + 0.5), Vector3(hw * 2.0, 6, 1))
+	town.build_perimeter_wall(hw, hd)  # tường gạch cũ bao quanh phố
 	for b in BUILDINGS:
 		_map_building(b)
 	# nền vỉa hè: chọn chỗ bong gạch (tránh cửa nhà, gốc cây, quán ghế nhựa) rồi mới lát
