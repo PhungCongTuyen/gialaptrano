@@ -84,7 +84,8 @@ var thirst: float = 100.0  # 100 = đủ nước, 0 = khát khô
 var _drain_acc: float = 0.0
 var money: int = 3_000_000
 var wife: int = 60
-var health: int = 100
+const STARVE_LIMIT: float = 60.0  # ~15-20 giờ trong game để bụng đói / khô cổ thì ngất
+var health: int = 100  # không còn dùng (giữ để đọc save cũ)
 var mood: int = 70
 var danger: int = 0
 var debt_total: int = DEBT_START
@@ -415,17 +416,15 @@ func _decay(m: float, sleeping: bool = false) -> void:
 	var k: float = 0.5 if sleeping else 1.0
 	hunger = maxf(0.0, hunger - m * k * HUNGER_PER_HOUR / 60.0)
 	thirst = maxf(0.0, thirst - m * k * THIRST_PER_HOUR / 60.0)
-	# Đói hoặc khát cạn thì mất dần sức khỏe và tinh thần
+	# Đói hoặc khát cạn quá lâu thì ngất, phải nhập viện (ăn uống lại thì hồi dần)
 	if hunger <= 0.0:
 		_drain_acc += m * 3.0 / 60.0
 	if thirst <= 0.0:
 		_drain_acc += m * 4.0 / 60.0
-	if _drain_acc >= 1.0:
-		var d: int = int(_drain_acc)
-		_drain_acc -= float(d)
-		health = clampi(health - d, 0, 100)
-		mood = clampi(mood - d, 0, 100)
-		_check_end()
+	if hunger > 0.0 and thirst > 0.0:
+		_drain_acc = maxf(0.0, _drain_acc - m * 2.0 / 60.0)
+	if _drain_acc >= STARVE_LIMIT:
+		finish("hospital")
 
 
 func time_name() -> String:
@@ -477,12 +476,8 @@ func apply(e: Dictionary) -> Array:
 			"wife":
 				wife = clampi(wife + v, 0, 100)
 				out.append("Tình cảm vợ %s" % _sgn(v))
-			"health":
-				health = clampi(health + v, 0, 100)
-				out.append("Sức khỏe %s" % _sgn(v))
-			"mood":
-				mood = clampi(mood + v, 0, 100)
-				out.append("Tinh thần %s" % _sgn(v))
+			"health", "mood":
+				pass  # đã bỏ chỉ số Sức khỏe / Tinh thần (chỉ còn Độ no, Nước, Tiền, Tình cảm)
 			"danger":
 				danger = clampi(danger + v, 0, 100)
 				out.append("Nguy hiểm %s" % _sgn(v))
@@ -508,8 +503,6 @@ func _check_end() -> void:
 		return
 	if wife <= 0:
 		finish("wife_left")
-	elif health <= 0:
-		finish("hospital")
 
 
 func finish(id: String) -> void:
@@ -645,7 +638,7 @@ func do_stream(kind: String, hours: float) -> Dictionary:
 		peak_mult = maxf(peak_mult, mlt)
 		t += 30.0
 	var scale: float = f / 3.0
-	var mood_f: float = 0.6 + float(mood) / 100.0 * 0.8
+	var mood_f: float = 1.15
 	var house_f: float = 1.3 if new_house else 1.0
 	var base: float = 4.0 + pow(followers, 0.95) * 0.15
 	var v: float = base * (1.0 + pc_view_bonus()) * (1.0 + gear_bonus("view"))
@@ -730,7 +723,7 @@ func do_stream(kind: String, hours: float) -> Dictionary:
 	else:
 		if good.size() > 0:
 			chat.append(str(good.pick_random()))
-		if bad.size() > 0 and (kind == "shock" or mood < 40 or rng.randf() < 0.4):
+		if bad.size() > 0 and (kind == "shock" or rng.randf() < 0.4):
 			chat.append(str(bad.pick_random()))
 	return {"rally": rally, "first_donate": day == 3 and not flags.has("first_donate_shown"), "hours": hours, "viewers": viewers, "income": income, "donate": int(don), "ads": ads, "notes": notes, "chat": chat, "lines": lines, "growth": int(growth)}
 
@@ -762,7 +755,7 @@ func gray_job() -> Dictionary:
 	var text: String = ""
 	var eff: Dictionary = {}
 	if rng.randf() < 0.25:
-		text = "Việc đổ bể. Bạn bị chặn đường, mất cả tiền công lẫn một ít sức khỏe."
+		text = "Việc đổ bể. Bạn bị chặn đường, mất cả tiền công lẫn tiền mang theo."
 		eff = {"health": -20, "mood": -8, "money": -500000}
 	else:
 		text = "Bạn chạy xong việc và nhận phong bì. Không ai hỏi gì, bạn cũng không muốn biết bên trong là gì."
@@ -1265,16 +1258,14 @@ func do_trash() -> Dictionary:
 ## Bới đụn rác / đụn lá trên vỉa hè: ra tiền (mệnh giá VNĐ), đồ vật, hoặc bốc phải phân.
 ## Tỉ lệ chỉnh trong data/items.json ("dig_outcome", "money_drops", "drop_trash"/"drop_leaves").
 func dig_pile(kind: String) -> Dictionary:
-	advance(DUR["pile"])
+	# thời gian bới (5 giây thật) đã trôi theo đồng hồ, không cộng thêm
 	scav_today += 1
 	var title: String = "Bới rác" if kind == "trash" else "Bới lá"
 	var oc: Dictionary = items_db.get("dig_outcome", {}).get(kind, {"nothing": 1})
 	var outcome: String = str(_pick_key(oc))
+	if outcome == "poop":
+		outcome = "nothing"  # bới chỉ ra đồ hoặc không
 	match outcome:
-		"poop":
-			var r: Dictionary = roll_list("poop_pile")
-			r["title"] = "Xấu số!"
-			return r
 		"money":
 			var drops: Array = items_db.get("money_drops", [[1000, 1]])
 			var wsum: float = 0.0
@@ -1290,7 +1281,7 @@ func dig_pile(kind: String) -> Dictionary:
 			var t: String = "Bạn tìm thấy một tờ %s nhàu nát!" % fmt_money(amt)
 			if amt >= 200000:
 				t = "Trời ơi, một tờ %s nằm lẫn trong đó! Hôm nay may thật." % fmt_money(amt)
-			var lines: Array = apply({"money": amt, "mood": 3 if amt >= 100000 else 1})
+			var lines: Array = apply({"money": amt})
 			return {"title": title, "text": t, "lines": lines}
 		"item":
 			var key: String = "drop_" + kind
@@ -1309,7 +1300,7 @@ func dig_pile(kind: String) -> Dictionary:
 				t2 = "Có thứ gì lấp lánh... là %s! Có thể bán, hoặc mang về tặng vợ." % nm.to_lower()
 			return {"title": title, "text": t2, "lines": ["+1 " + nm]}
 	var empty_txt: String = "Toàn rác bẩn, chẳng có gì giá trị." if kind == "trash" else "Toàn lá khô với lá khô."
-	return {"title": title, "text": empty_txt, "lines": apply({"mood": -1})}
+	return {"title": title, "text": empty_txt, "lines": []}
 
 
 func _pick_key(weights: Dictionary) -> Variant:

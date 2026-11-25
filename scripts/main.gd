@@ -103,7 +103,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	player.locked = hud.menu_open or hud.fading or hud.inv_open or hud.live_open
+	player.locked = hud.menu_open or hud.fading or hud.inv_open or hud.live_open or digging
 	var free: bool = game_live and not hud.menu_open and not hud.fading and not hud.inv_open and not hud.live_open and not GameState.finished
 	if free:
 		GameState.tick(delta)
@@ -854,38 +854,21 @@ func _spawn_piles() -> void:
 func _make_pile(pos: Vector3, kind: String) -> StaticBody3D:
 	var body: StaticBody3D = StaticBody3D.new()
 	body.position = pos
-	var cols: Array = []
+	body.rotation.y = GameState.rng.randf() * TAU
+	var vis: Node3D = Node3D.new()
+	vis.name = "vis"
+	body.add_child(vis)
+	var rh: Vector2 = town.build_leaf_pile(vis, kind, GameState.rng)
 	if kind == "trash":
-		cols = [Color(0.08, 0.08, 0.09), Color(0.15, 0.15, 0.17), Color(0.35, 0.3, 0.25), Color(0.6, 0.6, 0.62)]
-	else:
-		cols = [Color(0.75, 0.45, 0.12), Color(0.6, 0.35, 0.1), Color(0.8, 0.62, 0.2), Color(0.45, 0.3, 0.12)]
-	var n: int = 5 if kind == "trash" else 7
-	for i in n:
-		var mi: MeshInstance3D = MeshInstance3D.new()
-		var sm: SphereMesh = SphereMesh.new()
-		var r: float = GameState.rng.randf_range(0.18, 0.32) if kind == "trash" else GameState.rng.randf_range(0.2, 0.35)
-		sm.radius = r
-		sm.height = r * (1.4 if kind == "trash" else 0.7)
-		mi.mesh = sm
-		var mat: StandardMaterial3D = StandardMaterial3D.new()
-		mat.albedo_color = cols[GameState.rng.randi_range(0, cols.size() - 1)]
-		mat.roughness = 0.4 if kind == "trash" else 1.0
-		mi.material_override = mat
-		mi.position = Vector3(GameState.rng.randf_range(-0.35, 0.35), r * 0.45, GameState.rng.randf_range(-0.35, 0.35))
-		body.add_child(mi)
-		# va chạm ôm sát từng túi rác / ụ lá (đứng lên thì đúng độ cao, không lơ lửng)
-		var cs: CollisionShape3D = CollisionShape3D.new()
-		if kind == "trash":
-			var ss: SphereShape3D = SphereShape3D.new()
-			ss.radius = r * 0.7
-			cs.shape = ss
-		else:
-			var cy: CylinderShape3D = CylinderShape3D.new()
-			cy.radius = r * 0.85
-			cy.height = r * 0.7
-			cs.shape = cy
-		cs.position = mi.position
-		body.add_child(cs)
+		town.add_trash_bits(vis, rh.x, rh.y, GameState.rng)
+	# va chạm hình vòm đúng theo ụ lá (chỏm cầu bán kính R, cao H)
+	var cs: CollisionShape3D = CollisionShape3D.new()
+	var ss: SphereShape3D = SphereShape3D.new()
+	var rs: float = (rh.x * rh.x + rh.y * rh.y) / (2.0 * rh.y)
+	ss.radius = rs
+	cs.shape = ss
+	cs.position = Vector3(0, rh.y - rs, 0)
+	body.add_child(cs)
 	street_items.add_child(body)
 	body.set_meta("pile", kind)
 	_mark(body, "pile", "Bới đụn rác" if kind == "trash" else "Bới đụn lá")
@@ -1911,7 +1894,7 @@ func _on_interact(t: Node) -> void:
 		"casino":
 			_menu_casino()
 		"pile":
-			_menu_pile(t)
+			_dig_start(t)
 		"kitchen":
 			_menu_kitchen()
 		"dinner":
@@ -1972,7 +1955,7 @@ func _menu_desk() -> void:
 	var body: String = "Bây giờ là %s. %s, độ bền %d%%. Hôm nay còn stream được %d tiếng.\nGiờ vàng 20:00 - 23:00 đông người xem nhất; ngoài giờ đó người xem ít hơn nhiều.\n\nChọn nội dung:" % [g.clock_str(), g.pc_name(), int(g.pc_dur), g.stream_hours_left()]
 	var labels: Dictionary = {
 		"game": "Chơi game (ổn định, ít rủi ro)",
-		"chat": "Trò chuyện / hài (nhẹ nhàng, hồi tinh thần)",
+		"chat": "Trò chuyện / hài (nhẹ nhàng)",
 		"shock": "Thử thách gây sốc (nhiều view, nhưng vợ không thích, dễ bị chửi)",
 	}
 	var opts: Array = []
@@ -2436,21 +2419,81 @@ func _do_loan() -> void:
 	_show_result("Vay nóng", str(r["text"]), r["lines"])
 
 
-func _menu_pile(t: Node) -> void:
-	var kind: String = str(t.get_meta("pile", "trash"))
-	var name_txt: String = "Đụn rác" if kind == "trash" else "Đụn lá"
-	var body: String = "Một đụn rác bốc mùi nằm trên vỉa hè. Biết đâu có thứ gì đáng giá?" if kind == "trash" else "Một đụn lá khô ai đó quét dồn lại. Biết đâu có gì bên dưới?"
-	body += " Bới mất khoảng 20 phút."
-	hud.show_menu(name_txt, body, [
-		{"label": "Bới tìm", "cb": func(): _dig_pile(t)},
-		{"label": "Thôi", "cb": _noop}])
+const DIG_SECONDS: float = 5.0
+var digging: bool = false
 
 
-func _dig_pile(t: Node) -> void:
+## Bấm E vào đụn rác / đụn lá: hai tay bới trong 5 giây rồi ra kết quả (không hỏi lại).
+func _dig_start(t: Node) -> void:
+	if digging or not is_instance_valid(t):
+		return
+	digging = true
+	player.locked = true
+	var tp: Vector3 = (t as Node3D).global_position
+	var d: Vector3 = tp - player.global_position
+	var yaw: float = player.rotation.y + wrapf(atan2(-d.x, -d.z) - player.rotation.y, -PI, PI)
+	var dist: float = Vector2(d.x, d.z).length()
+	var tw: Tween = create_tween().set_parallel(true)
+	tw.tween_property(player, "rotation:y", yaw, 0.3)
+	tw.tween_method(player.set_pitch, player.pitch, -clampf(atan2(1.1, maxf(dist, 0.3)), 0.6, 1.1), 0.3)
+	player.play_dig(DIG_SECONDS)
+	var fx: CPUParticles3D = _dig_fx(t)
+	var vis: Node3D = (t as Node).get_node_or_null("vis") as Node3D
+	var shake: Tween = null
+	if vis != null:
+		shake = create_tween().set_loops()
+		shake.tween_property(vis, "scale", Vector3(1.04, 0.93, 1.04), 0.22)
+		shake.tween_property(vis, "scale", Vector3(0.98, 1.02, 0.98), 0.22)
+	await get_tree().create_timer(DIG_SECONDS).timeout
+	if shake != null:
+		shake.kill()
+	player.stop_dig()
+	if is_instance_valid(fx):
+		fx.emitting = false
+		get_tree().create_timer(1.2).timeout.connect(fx.queue_free)
+	digging = false
+	player.locked = false
 	if not is_instance_valid(t):
 		return
 	var kind: String = str(t.get_meta("pile", "trash"))
 	piles.erase(t)
-	t.queue_free()
+	t.remove_meta("interact")
+	if vis != null:
+		var tw2: Tween = create_tween()
+		tw2.tween_property(vis, "scale", Vector3(1.25, 0.08, 1.25), 0.4)
+		tw2.tween_callback(t.queue_free)
+	else:
+		t.queue_free()
 	var r: Dictionary = GameState.dig_pile(kind)
 	_show_result(str(r["title"]), str(r["text"]), r["lines"])
+
+
+## Lá vụn / rác bắn tung lên khi bới.
+func _dig_fx(t: Node) -> CPUParticles3D:
+	var p: CPUParticles3D = CPUParticles3D.new()
+	var q: QuadMesh = QuadMesh.new()
+	q.size = Vector2(0.06, 0.04)
+	p.mesh = q
+	var m: StandardMaterial3D = StandardMaterial3D.new()
+	m.vertex_color_use_as_albedo = true
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	p.material_override = m
+	p.amount = 40
+	p.lifetime = 0.9
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	p.emission_sphere_radius = 0.22
+	p.direction = Vector3(0, 1, 0)
+	p.spread = 55.0
+	p.initial_velocity_min = 1.0
+	p.initial_velocity_max = 2.2
+	p.angular_velocity_min = -400.0
+	p.angular_velocity_max = 400.0
+	var g: Gradient = Gradient.new()
+	g.set_color(0, Color(0.55, 0.36, 0.2))
+	g.set_color(1, Color(0.78, 0.6, 0.35))
+	p.color_initial_ramp = g
+	p.position = (t as Node3D).global_position + Vector3(0, 0.25, 0)
+	add_child(p)
+	p.emitting = true
+	return p

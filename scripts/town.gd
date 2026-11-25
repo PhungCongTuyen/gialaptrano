@@ -963,3 +963,174 @@ func scatter_leaves(walks: Array, trees: Array, holes: Array, density: float = 0
 		mmi.multimesh = mm
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(mmi)
+
+
+# ====================================================================== đụn lá khô / đụn rác
+
+const DRY_TINTS: Array = [Color(0.62, 0.46, 0.38), Color(0.5, 0.36, 0.3), Color(0.72, 0.6, 0.5), Color(0.44, 0.3, 0.27), Color(0.58, 0.42, 0.37), Color(0.78, 0.68, 0.58)]
+const PILE_LEAF_WEIGHTS: Dictionary = {"la_nau": 0.6, "la_cam": 0.22, "la_vang": 0.13, "la_vang_xanh": 0.05}
+var _pile_meshes: Array = []
+var _pile_mats: Array = []
+var _pile_names: Array = []
+
+
+func _ensure_pile_meshes() -> bool:
+	if not _pile_meshes.is_empty():
+		return true
+	if not ResourceLoader.exists(LEAF_MODEL):
+		return false
+	var tmp: Node = (load(LEAF_MODEL) as PackedScene).instantiate()
+	for c in tmp.find_children("*", "MeshInstance3D", true, false):
+		var mesh: Mesh = (c as MeshInstance3D).mesh
+		var src: Material = mesh.surface_get_material(0)
+		var m2: StandardMaterial3D = (src as StandardMaterial3D).duplicate() if src is StandardMaterial3D else StandardMaterial3D.new()
+		m2.vertex_color_use_as_albedo = true  # nhân màu từng lá (MultiMesh) -> lá khô nhiều sắc nâu
+		m2.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_pile_meshes.append(mesh)
+		_pile_mats.append(m2)
+		_pile_names.append(String(c.name).to_lower())
+	tmp.free()
+	return not _pile_meshes.is_empty()
+
+
+func _pick_leaf(r: RandomNumberGenerator) -> int:
+	var total: float = 0.0
+	for n in _pile_names:
+		total += float(PILE_LEAF_WEIGHTS.get(_leaf_key(n), 0.1))
+	var x: float = r.randf() * total
+	for i in _pile_names.size():
+		x -= float(PILE_LEAF_WEIGHTS.get(_leaf_key(_pile_names[i]), 0.1))
+		if x <= 0.0:
+			return i
+	return 0
+
+
+func _leaf_key(n: String) -> String:
+	for k in PILE_LEAF_WEIGHTS.keys():
+		if n.begins_with(k) and not (k == "la_vang" and n.begins_with("la_vang_xanh")):
+			return k
+	return n
+
+
+## Dựng một đụn lá khô (rất nhiều lá gom lại thành ụ) vào node vis. Trả về Vector2(bán kính, chiều cao).
+func build_leaf_pile(vis: Node3D, kind: String, r: RandomNumberGenerator) -> Vector2:
+	var R: float = r.randf_range(0.38, 0.5)
+	var H: float = r.randf_range(0.27, 0.36) * (0.85 if kind == "trash" else 1.0)
+	# lõi sẫm màu bên trong để không nhìn xuyên qua kẽ lá
+	var core: MeshInstance3D = MeshInstance3D.new()
+	var sm: SphereMesh = SphereMesh.new()
+	sm.radius = R * 0.7
+	sm.height = H * 1.5
+	sm.radial_segments = 12
+	sm.rings = 6
+	core.mesh = sm
+	core.material_override = mat(Color(0.2, 0.13, 0.08), 1.0)
+	vis.add_child(core)
+	if not _ensure_pile_meshes():
+		core.material_override = mat(Color(0.55, 0.36, 0.18), 1.0)
+		return Vector2(R, H)
+	var per: Array = []
+	for i in _pile_meshes.size():
+		per.append([])
+	var n_main: int = 175 if kind == "leaves" else 110
+	for i in n_main:
+		var u: float = sqrt(r.randf())
+		var th: float = r.randf() * TAU
+		var h: float = H * pow(maxf(0.0, 1.0 - u * u), 0.7)
+		var p: Vector3 = Vector3(cos(th) * u * R, maxf(0.012, h - r.randf_range(0.0, 0.04)), sin(th) * u * R)
+		var nrm: Vector3 = Vector3(cos(th) * u * 1.3, 1.0, sin(th) * u * 1.3).normalized()
+		var b: Basis = Basis(Quaternion(Vector3.UP, nrm)) * Basis(Vector3.UP, r.randf() * TAU)
+		b = b * Basis(Vector3.RIGHT, r.randf_range(-1.0, 1.0)) * Basis(Vector3.BACK, r.randf_range(-0.7, 0.7))
+		b = b.scaled(Vector3.ONE * r.randf_range(1.8, 2.8))
+		per[_pick_leaf(r)].append([Transform3D(b, p), DRY_TINTS[r.randi_range(0, DRY_TINTS.size() - 1)]])
+	# lá rơi vãi quanh chân đụn
+	for i in 30:
+		var th2: float = r.randf() * TAU
+		var rr: float = R * r.randf_range(0.95, 1.8)
+		var b2: Basis = Basis.from_euler(Vector3(r.randf_range(-0.25, 0.25), r.randf() * TAU, r.randf_range(-0.25, 0.25))).scaled(Vector3.ONE * r.randf_range(1.3, 2.0))
+		per[_pick_leaf(r)].append([Transform3D(b2, Vector3(cos(th2) * rr, 0.008, sin(th2) * rr)), DRY_TINTS[r.randi_range(0, DRY_TINTS.size() - 1)]])
+	for i in _pile_meshes.size():
+		var list: Array = per[i]
+		if list.is_empty():
+			continue
+		var mm: MultiMesh = MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_colors = true
+		mm.mesh = _pile_meshes[i]
+		mm.instance_count = list.size()
+		for k in list.size():
+			mm.set_instance_transform(k, list[k][0])
+			mm.set_instance_color(k, list[k][1])
+		var mmi: MultiMeshInstance3D = MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		mmi.material_override = _pile_mats[i]
+		vis.add_child(mmi)
+	# vài cành que khô chọc ra
+	for i in r.randi_range(2, 4):
+		var tw: MeshInstance3D = MeshInstance3D.new()
+		var cm: CylinderMesh = CylinderMesh.new()
+		cm.top_radius = 0.003
+		cm.bottom_radius = 0.005
+		cm.height = r.randf_range(0.3, 0.55)
+		cm.radial_segments = 5
+		tw.mesh = cm
+		tw.material_override = mat(Color(0.42, 0.36, 0.3), 1.0)
+		var th3: float = r.randf() * TAU
+		tw.position = Vector3(cos(th3) * R * 0.4, H * 0.45, sin(th3) * R * 0.4)
+		tw.rotation = Vector3(r.randf_range(1.0, 1.4), th3, 0)
+		vis.add_child(tw)
+	return Vector2(R, H)
+
+
+## Rác lẫn trong đụn: túi nilon, cốc nhựa, giấy, lon, chai.
+func add_trash_bits(vis: Node3D, R: float, H: float, r: RandomNumberGenerator) -> void:
+	var n: int = r.randi_range(6, 9)
+	for i in n:
+		var u: float = sqrt(r.randf()) * 0.9
+		var th: float = r.randf() * TAU
+		var h: float = H * pow(maxf(0.0, 1.0 - u * u), 0.7)
+		var p: Vector3 = Vector3(cos(th) * u * R, h - 0.02, sin(th) * u * R)
+		var mi: MeshInstance3D = MeshInstance3D.new()
+		var kind: int = r.randi_range(0, 4)
+		match kind:
+			0, 1:  # túi nilon
+				var sp: SphereMesh = SphereMesh.new()
+				var rad: float = r.randf_range(0.07, 0.13)
+				sp.radius = rad
+				sp.height = rad * r.randf_range(1.0, 1.5)
+				sp.radial_segments = 7
+				sp.rings = 4
+				mi.mesh = sp
+				var bag_cols: Array = [Color(0.06, 0.06, 0.07), Color(0.06, 0.06, 0.07), Color(0.14, 0.24, 0.45), Color(0.5, 0.12, 0.1), Color(0.82, 0.82, 0.8)]
+				mi.material_override = mat(bag_cols[r.randi_range(0, 4)], 0.35)
+				mi.scale = Vector3(1.0, r.randf_range(0.6, 0.9), r.randf_range(0.8, 1.2))
+			2:  # cốc nhựa / lon
+				var cy: CylinderMesh = CylinderMesh.new()
+				var can: bool = r.randf() < 0.5
+				cy.top_radius = 0.033 if can else 0.042
+				cy.bottom_radius = 0.033 if can else 0.03
+				cy.height = 0.12 if can else 0.1
+				cy.radial_segments = 10
+				mi.mesh = cy
+				var m: StandardMaterial3D = mat(Color(0.75, 0.1, 0.1) if can else Color(0.92, 0.92, 0.9), 0.3)
+				m.metallic = 0.6 if can else 0.0
+				mi.material_override = m
+				mi.rotation = Vector3(r.randf_range(1.1, 1.6), r.randf() * TAU, 0)
+			3:  # giấy, hộp xốp
+				var bx: BoxMesh = BoxMesh.new()
+				bx.size = Vector3(r.randf_range(0.1, 0.18), 0.004, r.randf_range(0.08, 0.14))
+				mi.mesh = bx
+				mi.material_override = mat(Color(0.88, 0.86, 0.8), 0.9)
+				mi.rotation = Vector3(r.randf_range(-0.8, 0.8), r.randf() * TAU, r.randf_range(-0.8, 0.8))
+			_:  # chai nhựa
+				var cy2: CylinderMesh = CylinderMesh.new()
+				cy2.top_radius = 0.02
+				cy2.bottom_radius = 0.035
+				cy2.height = 0.2
+				cy2.radial_segments = 10
+				mi.mesh = cy2
+				var mb: StandardMaterial3D = mat(Color(0.7, 0.85, 0.8), 0.15)
+				mi.material_override = mb
+				mi.rotation = Vector3(r.randf_range(1.2, 1.5), r.randf() * TAU, 0)
+		mi.position = p
+		vis.add_child(mi)

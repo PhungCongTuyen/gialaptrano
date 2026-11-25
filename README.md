@@ -48,7 +48,7 @@ Vợ đi làm lúc 7:00 (nếu bạn đang thức ở nhà, vợ chào: "Em đi 
 - **23:30** cảnh báo về nhà. **00:00** tự cắt cảnh: bảng tổng kết ngày cũ, ngủ đến 06:00 sáng hôm sau. Nếu lúc đó còn ở ngoài đường thì mất 5% tiền mặt.
 - Có thể đi ngủ sớm ở giường: ngủ luôn đến 06:00.
 - Stream tối đa 8 tiếng/ngày và phải kết thúc trước 00:00.
-- Đồng hồ đeo tay (Q): giờ, ngày, đói, khát. Đói, khát tăng dần (khi ngủ chậm hơn); cạn thì mất sức khỏe.
+- Đồng hồ đeo tay (Q): giờ, ngày, đói, khát. Đói, khát tăng dần (khi ngủ chậm hơn); cạn quá lâu (khoảng 15-20 giờ) thì ngất, nhập viện (kết thúc xấu). Chỉ số chỉ còn: Độ no, Nước, Tiền, Tình cảm.
 
 ## Cấu trúc
 | File | Vai trò |
@@ -61,7 +61,7 @@ Vợ đi làm lúc 7:00 (nếu bạn đang thức ở nhà, vợ chào: "Em đi 
 
 ## Túi đồ và item
 Thanh nhanh 5 ô (phím 1–5, hiện ở đáy màn hình) + túi 10 ô. Tab mở túi đồ: hàng 5 ô trên cùng là thanh nhanh, giữ chuột trái kéo đồ giữa túi và thanh nhanh (cùng loại thì cộng dồn). F dùng món đang cầm (ăn, uống).
-- Bới đụn rác/lá: ra tiền mệnh giá VNĐ 1k–500k (500k khoảng 3%), hoặc đồ: ve chai (chai nhựa, vỏ lon, giấy, sắt vụn), dây đồng, bật lửa, điện thoại hỏng, lockpick, trang sức bạc/vàng (khuyên tai, nhẫn, vòng tay, dây chuyền); hoặc bốc phải phân.
+- Bới đụn rác/lá: ra tiền mệnh giá VNĐ 1k–500k (500k khoảng 3%), hoặc đồ: ve chai (chai nhựa, vỏ lon, giấy, sắt vụn), dây đồng, bật lửa, điện thoại hỏng, lockpick, trang sức bạc/vàng (khuyên tai, nhẫn, vòng tay, dây chuyền); hoặc không có gì. Bới mất 5 giây (hoạt ảnh hai tay đào bới), không cộng trừ chỉ số.
 - **Chú Tư ve chai** (vỉa hè cạnh chỗ đỏ đen): thu mua ve chai, đồng nát (chai, lon, giấy, sắt vụn, dây đồng, điện thoại hỏng, bật lửa) và bán lockpick (150k).
 - **Tiệm vàng bạc** (căn nhà màu vàng ngay dưới quán ăn): mua lại trang sức, và bán trang sức để tặng vợ.
 - **Tặng vợ** trang sức: nói chuyện với vợ → Tặng quà.
@@ -73,13 +73,13 @@ Toàn bộ danh sách, giá, tỉ lệ rơi nằm trong `data/items.json`.
 ## Bản đồ khu phố
 Dựng theo ảnh bản đồ (1 px = 0,1 m), dữ liệu ở đầu phần `BẢN ĐỒ KHU PHỐ` trong `main.gd`: `ROADS` (mặt đường), `CORRIDORS` (khoảng đi lại của người đi đường), `BUILDINGS` (nhà: khung pixel, màu, chiều cao, mặt có cửa, loại tương tác), `SIDEWALKS` (vỉa hè, nơi rải đụn rác/lá). Tím = nhà mình, đỏ = chủ nợ, cam = đỏ đen, vàng = nhà cho thuê, hồng = đồ máy tính, xanh lá = quán ăn, vàng đậm (dưới quán ăn) = tiệm vàng bạc, xanh dương = nhà thường, xám = công trường bỏ hoang (tính năng riêng sẽ thêm sau).
 
-Mỗi ngày có 4–5 đụn rác hoặc đụn lá xuất hiện ngẫu nhiên trên vỉa hè. Bấm E để bới (20 phút): có thể ra tiền, đồ bán được, hoặc bốc phải phân. Kết quả chỉnh trong `data/events.json` (`trash`, `leaves`, `poop_pile`).
+Mỗi ngày có 4–5 đụn rác hoặc đụn lá xuất hiện ngẫu nhiên trên vỉa hè. Trỏ chuột vào đụn, bấm E là bới ngay (5 giây): ra tiền, đồ bán được, hoặc không có gì. Tỉ lệ chỉnh trong `data/items.json` (`dig_outcome`).
 
 ## Việc làm được trong game
 - **Bàn stream** (trong nhà): chọn nội dung, thu donate, tăng follower. Máy yếu dễ treo.
 - **Cửa hàng đồ máy tính**: mua dàn máy, đồ stream, sửa máy.
 - **Nhà mới cho thuê**: studio rộng, +30% view, tiền thuê cao hơn.
-- **Quán ăn**: hồi sức khỏe/tinh thần, rủ vợ đi ăn.
+- **Quán ăn**: ăn no, uống nước, rủ vợ đi ăn.
 - **Nhà chủ nợ**: trả nợ. Các mốc: ngày 15 (đã trả 10tr), 30 (30tr), 45 (60tr), 60 (hết nợ 100tr). Trễ mốc bị phạt lãi 10% và nguy hiểm tăng.
 - **Chỗ đỏ đen** (mở từ chiều): cược đỏ/đen, việc xám, vay nóng.
 - **Ngoài phố**: bới đụn rác / đụn lá trên vỉa hè.

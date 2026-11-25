@@ -44,6 +44,7 @@ func _ready() -> void:
 	cam.add_child(ray)
 	ray.add_exception(self)
 	_build_wrist()
+	_build_hands()
 
 
 ## Cánh tay trái đeo đồng hồ, gắn vào camera. Vẽ đè lên mọi thứ để không bị tường che.
@@ -160,7 +161,12 @@ func _physics_process(delta: float) -> void:
 		sprint = Input.is_physical_key_pressed(KEY_SHIFT)
 		jump = Input.is_physical_key_pressed(KEY_SPACE)
 	crouching = (not locked) and Input.is_physical_key_pressed(KEY_CTRL)
-	cam.position.y = lerpf(cam.position.y, 0.15 if crouching else 0.7, minf(1.0, delta * 10.0))
+	var cam_h: float = 0.7
+	if crouching:
+		cam_h = 0.15
+	elif dig_time >= 0.0:
+		cam_h = 0.2  # ngồi xổm bới
+	cam.position.y = lerpf(cam.position.y, cam_h, minf(1.0, delta * 8.0))
 	var d: Vector3 = (transform.basis * Vector3(dir_in.x, 0.0, dir_in.y)).normalized()
 	var spd: float = SPRINT if sprint else SPEED
 	if crouching:
@@ -178,3 +184,75 @@ func _physics_process(delta: float) -> void:
 		var c: Object = ray.get_collider()
 		if c != null and c is Node and (c as Node).has_meta("interact"):
 			target = c as Node
+
+
+# ---------------------------------------------------------------- hai tay bới đụn rác / lá
+
+var hands: Node3D
+var _hand_arms: Array = []
+var dig_time: float = -1.0
+var dig_len: float = 5.0
+
+
+func _build_hands() -> void:
+	hands = Node3D.new()
+	hands.visible = false
+	cam.add_child(hands)
+	var skin: StandardMaterial3D = _overlay_mat(Color(0.85, 0.65, 0.5))
+	var shirt: StandardMaterial3D = _overlay_mat(Color(0.25, 0.3, 0.45))
+	for side in [-1.0, 1.0]:
+		var arm: Node3D = Node3D.new()
+		hands.add_child(arm)
+		_hand_arms.append([arm, side])
+		var parts: Array = [
+			[Vector3(0.07, 0.062, 0.3), Vector3(0, 0, 0.15), skin],         # cẳng tay
+			[Vector3(0.078, 0.07, 0.1), Vector3(0, 0.002, 0.33), shirt],   # tay áo
+			[Vector3(0.085, 0.028, 0.095), Vector3(0, -0.004, -0.04), skin], # bàn tay
+		]
+		for k in 4:  # ngón tay
+			parts.append([Vector3(0.016, 0.017, 0.062), Vector3(-0.03 + float(k) * 0.02, -0.012, -0.112), skin])
+		parts.append([Vector3(0.019, 0.019, 0.05), Vector3(0.048 * -side, -0.004, -0.06), skin])  # ngón cái
+		for pt in parts:
+			var mi: MeshInstance3D = MeshInstance3D.new()
+			var bm: BoxMesh = BoxMesh.new()
+			bm.size = pt[0]
+			mi.mesh = bm
+			mi.position = pt[1]
+			mi.material_override = pt[2]
+			if (pt[0] as Vector3).z < 0.08 and (pt[1] as Vector3).z < -0.1:
+				mi.rotation.x = 0.5  # ngón co lại như đang cào
+			arm.add_child(mi)
+
+
+## Bắt đầu hoạt ảnh hai tay đào bới trong `seconds` giây.
+func play_dig(seconds: float) -> void:
+	dig_len = seconds
+	dig_time = 0.0
+	hands.visible = true
+	wrist.visible = false
+	_update_hands()
+
+
+func stop_dig() -> void:
+	dig_time = -1.0
+	hands.visible = false
+	wrist.visible = true
+
+
+func _process(delta: float) -> void:
+	if dig_time >= 0.0:
+		dig_time += delta
+		_update_hands()
+
+
+func _update_hands() -> void:
+	var t: float = dig_time
+	var enter: float = clampf(t / 0.3, 0.0, 1.0) * clampf((dig_len - t) / 0.3, 0.0, 1.0)  # thò tay vào / rút ra
+	for e in _hand_arms:
+		var arm: Node3D = e[0]
+		var side: float = e[1]
+		var ph: float = t * TAU * 1.7 + (0.0 if side < 0.0 else PI)
+		var sc: float = sin(ph)
+		var dn: float = maxf(0.0, sc)
+		arm.position = Vector3(0.13 * side - 0.03 * side * sc, -0.2 - 0.07 * dn - 0.3 * (1.0 - enter), -0.62 - 0.1 * sc)
+		arm.rotation = Vector3(-0.7 - 0.45 * dn + 0.2 * maxf(0.0, -sc), 0.22 * side, 0.3 * side * cos(ph))
