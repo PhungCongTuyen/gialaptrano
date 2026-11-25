@@ -251,8 +251,14 @@ func _build_environment() -> void:
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.tonemap_exposure = 0.9
-	env.ambient_light_sky_contribution = 0.55
-	env.ambient_light_color = Color(0.75, 0.72, 0.68)
+	# ánh sáng môi trường chủ yếu là màu trung tính ấm (ít lấy màu xanh của trời)
+	# để chỗ bóng râm không bị ngả tím trên gạch đỏ
+	env.ambient_light_sky_contribution = 0.2
+	env.ambient_light_color = Color(0.86, 0.81, 0.74)
+	# che khuất môi trường (bản Forward+/Mobile): kẽ gạch, chân tường tối hơn, đỡ phẳng
+	env.ssao_enabled = true
+	env.ssao_radius = 0.6
+	env.ssao_intensity = 1.6
 	env.glow_enabled = true
 	env.glow_intensity = 0.6
 	env.fog_enabled = true
@@ -282,8 +288,8 @@ func _apply_time() -> void:
 	var dusk: float = clampf(1.0 - absf(h - 18.0) / 1.5, 0.0, 1.0) + clampf(1.0 - absf(h - 6.0) / 1.2, 0.0, 1.0)
 	var elev: float = clampf((h - 6.0) / 12.0, 0.0, 1.0) * 180.0
 	sun.rotation_degrees = Vector3(-maxf(elev, 8.0) if elev < 90.0 else -(180.0 - maxf(180.0 - elev, 8.0)), -40.0 + elev * 0.3, 0)
-	sun.light_energy = lerpf(1.05, 0.0, night)
-	sun.light_color = Color(1.0, 0.95, 0.88).lerp(Color(1.0, 0.6, 0.35), dusk)
+	sun.light_energy = lerpf(1.15, 0.0, night)
+	sun.light_color = Color(1.0, 0.93, 0.82).lerp(Color(1.0, 0.6, 0.35), dusk)
 	var day_top: Color = Color(0.28, 0.52, 0.85)
 	var day_hor: Color = Color(0.72, 0.82, 0.92)
 	var dusk_hor: Color = Color(0.98, 0.6, 0.38)
@@ -293,7 +299,8 @@ func _apply_time() -> void:
 	sky_mat.sky_horizon_color = day_hor.lerp(dusk_hor, clampf(dusk, 0.0, 1.0) * (1.0 - night * 0.6)).lerp(night_hor, night)
 	sky_mat.ground_horizon_color = sky_mat.sky_horizon_color
 	sky_mat.ground_bottom_color = Color(0.2, 0.18, 0.16).lerp(Color(0.02, 0.02, 0.03), night)
-	env.ambient_light_energy = lerpf(0.6, 0.25, night)
+	env.ambient_light_energy = lerpf(0.7, 0.3, night)
+	env.ambient_light_color = Color(0.86, 0.81, 0.74).lerp(Color(0.45, 0.5, 0.68), night).lerp(Color(0.95, 0.75, 0.6), clampf(dusk, 0.0, 1.0) * (1.0 - night) * 0.5)
 	env.fog_light_color = sky_mat.sky_horizon_color
 	town.set_night(night)
 

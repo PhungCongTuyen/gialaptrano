@@ -159,7 +159,7 @@ const SIDEWALK_NORMAL: String = "res://textures/via_he/via_he_normal.png"
 const SIDEWALK_ROUGH: String = "res://textures/via_he/via_he_rough.png"
 const SIDEWALK_HEIGHT: String = "res://textures/via_he/via_he_height.png"
 const SIDEWALK_REPEAT_M: float = 2.4  # 8 viên x 30 cm
-const SIDEWALK_PARALLAX: float = 0.7  # độ sâu parallax (càng lớn kẽ/ô vuông càng lõm)
+const SIDEWALK_PARALLAX: float = 1.2  # độ sâu parallax (càng lớn kẽ/ô vuông càng lõm)
 
 
 func build_ground(size: Vector3, roads: Array, holes: Array = []) -> void:
@@ -171,7 +171,7 @@ func build_ground(size: Vector3, roads: Array, holes: Array = []) -> void:
 		if ResourceLoader.exists(SIDEWALK_NORMAL):
 			tile.normal_enabled = true
 			tile.normal_texture = load(SIDEWALK_NORMAL)
-			tile.normal_scale = 1.0
+			tile.normal_scale = 1.4
 		if ResourceLoader.exists(SIDEWALK_ROUGH):
 			tile.roughness_texture = load(SIDEWALK_ROUGH)
 			tile.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED

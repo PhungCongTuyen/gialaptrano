@@ -89,12 +89,12 @@ Image.fromarray((col * 255).astype(np.uint8)).save('/home/claude/tex/via_he_albe
 
 # normal map (OpenGL, Y+)
 # độ cao: bát giác cao nhất, ô vuông thấp hơn ~1 cm, kẽ cát thấp nhất
-SQ_LOW = 0.72
+SQ_LOW = 0.58
 H = h * np.where(is_sq, SQ_LOW, 1.0) + 0.03 * pnoise(S, 300, 13) * inside + 0.1 * moss_in_gap
 Image.fromarray((np.clip(H, 0, 1) * 255).astype(np.uint8)).save('/home/claude/tex/via_he_height.png')
 gx = (np.roll(H, -1, 1) - np.roll(H, 1, 1)) * 0.5
 gy = (np.roll(H, -1, 0) - np.roll(H, 1, 0)) * 0.5
-strength = 6.0
+strength = 9.0
 nx, ny, nz = -gx * strength, gy * strength, np.ones_like(H)
 L = np.sqrt(nx**2 + ny**2 + nz**2)
 n = np.stack([nx / L, ny / L, nz / L], -1) * 0.5 + 0.5
