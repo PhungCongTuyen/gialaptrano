@@ -157,7 +157,9 @@ func text3d(parent: Node3D, txt: String, pos: Vector3, size: float, col: Color, 
 const SIDEWALK_ALBEDO: String = "res://textures/via_he/via_he_albedo.jpg"
 const SIDEWALK_NORMAL: String = "res://textures/via_he/via_he_normal.png"
 const SIDEWALK_ROUGH: String = "res://textures/via_he/via_he_rough.png"
+const SIDEWALK_HEIGHT: String = "res://textures/via_he/via_he_height.png"
 const SIDEWALK_REPEAT_M: float = 2.4  # 8 viên x 30 cm
+const SIDEWALK_PARALLAX: float = 0.7  # độ sâu parallax (càng lớn kẽ/ô vuông càng lõm)
 
 
 func build_ground(size: Vector3, roads: Array, holes: Array = []) -> void:
@@ -174,10 +176,21 @@ func build_ground(size: Vector3, roads: Array, holes: Array = []) -> void:
 			tile.roughness_texture = load(SIDEWALK_ROUGH)
 			tile.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
 		tile.roughness = 1.0
-		tile.uv1_triplanar = true
-		tile.uv1_world_triplanar = true
-		tile.uv1_scale = Vector3.ONE / SIDEWALK_REPEAT_M
 		tile.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+		# bản cho gạch 3D quanh hố: chiếu texture theo toạ độ thế giới (khớp với lưới UV của mặt vỉa hè)
+		var tri: StandardMaterial3D = tile.duplicate()
+		tri.uv1_triplanar = true
+		tri.uv1_world_triplanar = true
+		tri.uv1_scale = Vector3.ONE / SIDEWALK_REPEAT_M
+		sidewalk_mat = tri
+		# độ cao: bát giác nhô hơn ô vuông, kẽ cát lõm (parallax)
+		if ResourceLoader.exists(SIDEWALK_HEIGHT):
+			tile.heightmap_enabled = true
+			tile.heightmap_texture = load(SIDEWALK_HEIGHT)
+			tile.heightmap_scale = SIDEWALK_PARALLAX
+			tile.heightmap_deep_parallax = true
+			tile.heightmap_min_layers = 8
+			tile.heightmap_max_layers = 24
 	else:
 		tile.albedo_texture = tile_tex
 		tile.uv1_triplanar = true
@@ -197,7 +210,8 @@ func build_ground(size: Vector3, roads: Array, holes: Array = []) -> void:
 	# lớp cát nền bên dưới gạch (lộ ra ở chỗ gạch bong)
 	deco(self, Vector3(size.x, 0.9, size.z), Vector3(0, -TILE_T - 0.45, 0), _sand_mat())
 	# lớp gạch dày 6 cm, chừa các ô hố
-	sidewalk_mat = tile
+	if sidewalk_mat == null:
+		sidewalk_mat = tile
 	_build_slabs(size, holes, tile)
 	# mặt đường nhựa + mép vỉa hè
 	var asph: StandardMaterial3D = StandardMaterial3D.new()
@@ -685,6 +699,8 @@ func _build_slabs(size: Vector3, holes: Array, tile: Material) -> void:
 		xs.append(hr.position.x)
 		xs.append(hr.end.x)
 	xs.sort()
+	var st: SurfaceTool = SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for i in xs.size() - 1:
 		var xa: float = xs[i]
 		var xb: float = xs[i + 1]
@@ -699,14 +715,40 @@ func _build_slabs(size: Vector3, holes: Array, tile: Material) -> void:
 		var cur: float = z0
 		for c in cuts:
 			if c.x > cur + 0.0001:
-				_slab(xa, xb, cur, c.x, tile)
+				_slab(st, xa, xb, cur, c.x)
 			cur = maxf(cur, c.y)
 		if z1 > cur + 0.0001:
-			_slab(xa, xb, cur, z1, tile)
+			_slab(st, xa, xb, cur, z1)
+	st.generate_tangents()
+	var mi: MeshInstance3D = MeshInstance3D.new()
+	mi.mesh = st.commit()
+	mi.material_override = tile
+	add_child(mi)
 
 
-func _slab(xa: float, xb: float, za: float, zb: float, tile: Material) -> void:
-	deco(self, Vector3(xb - xa, TILE_T, zb - za), Vector3((xa + xb) / 2.0, -TILE_T / 2.0, (za + zb) / 2.0), tile)
+## Một tấm gạch chữ nhật: mặt trên (UV theo toạ độ thế giới để khớp texture) + 4 mặt bên dày 6 cm.
+func _slab(st: SurfaceTool, xa: float, xb: float, za: float, zb: float) -> void:
+	var k: float = 1.0 / SIDEWALK_REPEAT_M
+	var y0: float = -TILE_T
+	_quad(st, [Vector3(xa, 0, za), Vector3(xb, 0, za), Vector3(xb, 0, zb), Vector3(xa, 0, zb)], Vector3.UP, k)
+	_quad(st, [Vector3(xa, 0, zb), Vector3(xb, 0, zb), Vector3(xb, y0, zb), Vector3(xa, y0, zb)], Vector3.BACK, k)
+	_quad(st, [Vector3(xb, 0, za), Vector3(xa, 0, za), Vector3(xa, y0, za), Vector3(xb, y0, za)], Vector3.FORWARD, k)
+	_quad(st, [Vector3(xb, 0, zb), Vector3(xb, 0, za), Vector3(xb, y0, za), Vector3(xb, y0, zb)], Vector3.RIGHT, k)
+	_quad(st, [Vector3(xa, 0, za), Vector3(xa, 0, zb), Vector3(xa, y0, zb), Vector3(xa, y0, za)], Vector3.LEFT, k)
+
+
+func _quad(st: SurfaceTool, v: Array, n: Vector3, k: float) -> void:
+	# thứ tự đỉnh theo chiều kim đồng hồ khi nhìn từ phía pháp tuyến (mặt trước của Godot)
+	for idx in [0, 1, 2, 0, 2, 3]:
+		var p: Vector3 = v[idx]
+		st.set_normal(n)
+		if n == Vector3.UP:
+			st.set_uv(Vector2(p.x, p.z) * k)
+		elif absf(n.x) > 0.5:
+			st.set_uv(Vector2(p.z, -p.y) * k)
+		else:
+			st.set_uv(Vector2(p.x, -p.y) * k)
+		st.add_vertex(p)
 
 
 ## Chọn chỗ vỉa hè bị bong gạch. walks: các Rect2 (x, z) của vỉa hè; avoid: các điểm cần tránh.
