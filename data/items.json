@@ -1,0 +1,376 @@
+{
+ "items": {
+  "bottle": {
+   "name": "Chai nhựa",
+   "type": "junk",
+   "sell": 1000,
+   "stack": 20,
+   "drop_trash": 30,
+   "drop_leaves": 8
+  },
+  "can": {
+   "name": "Vỏ lon",
+   "type": "junk",
+   "sell": 2000,
+   "stack": 20,
+   "drop_trash": 28,
+   "drop_leaves": 6
+  },
+  "paper": {
+   "name": "Giấy báo cũ",
+   "type": "junk",
+   "sell": 1000,
+   "stack": 20,
+   "drop_trash": 15,
+   "drop_leaves": 4
+  },
+  "scrap": {
+   "name": "Sắt vụn",
+   "type": "junk",
+   "sell": 5000,
+   "stack": 20,
+   "drop_trash": 10,
+   "drop_leaves": 2
+  },
+  "copper": {
+   "name": "Dây đồng",
+   "type": "valuable",
+   "sell": 30000,
+   "stack": 10,
+   "drop_trash": 10,
+   "drop_leaves": 2
+  },
+  "phone_broken": {
+   "name": "Điện thoại hỏng",
+   "type": "valuable",
+   "sell": 60000,
+   "stack": 5,
+   "drop_trash": 3,
+   "drop_leaves": 1
+  },
+  "lighter": {
+   "name": "Bật lửa",
+   "type": "valuable",
+   "sell": 8000,
+   "stack": 10,
+   "drop_trash": 4,
+   "drop_leaves": 6
+  },
+  "lockpick": {
+   "name": "Lockpick",
+   "type": "tool",
+   "sell": 50000,
+   "stack": 5,
+   "drop_trash": 0,
+   "drop_leaves": 0,
+   "buy": 150000,
+   "desc": "Dụng cụ cạy khóa. Thử với cổng khu công trường bỏ hoang."
+  },
+  "earring_silver": {
+   "name": "Khuyên tai bạc",
+   "type": "jewelry",
+   "sell": 80000,
+   "stack": 5,
+   "drop_trash": 4,
+   "drop_leaves": 5,
+   "gift": 6,
+   "buy": 130000
+  },
+  "ring_silver": {
+   "name": "Nhẫn bạc",
+   "type": "jewelry",
+   "sell": 120000,
+   "stack": 5,
+   "drop_trash": 3,
+   "drop_leaves": 4,
+   "gift": 7,
+   "buy": 190000
+  },
+  "bracelet_silver": {
+   "name": "Vòng tay bạc",
+   "type": "jewelry",
+   "sell": 150000,
+   "stack": 5,
+   "drop_trash": 3,
+   "drop_leaves": 3,
+   "gift": 8,
+   "buy": 240000
+  },
+  "necklace_silver": {
+   "name": "Dây chuyền bạc",
+   "type": "jewelry",
+   "sell": 200000,
+   "stack": 5,
+   "drop_trash": 2,
+   "drop_leaves": 3,
+   "gift": 10,
+   "buy": 320000
+  },
+  "earring_gold": {
+   "name": "Khuyên tai vàng",
+   "type": "jewelry",
+   "sell": 600000,
+   "stack": 5,
+   "drop_trash": 1.2,
+   "drop_leaves": 1.5,
+   "gift": 14,
+   "buy": 960000
+  },
+  "ring_gold": {
+   "name": "Nhẫn vàng",
+   "type": "jewelry",
+   "sell": 1200000,
+   "stack": 5,
+   "drop_trash": 0.8,
+   "drop_leaves": 1.0,
+   "gift": 18,
+   "buy": 1920000
+  },
+  "bracelet_gold": {
+   "name": "Vòng tay vàng",
+   "type": "jewelry",
+   "sell": 2000000,
+   "stack": 5,
+   "drop_trash": 0.5,
+   "drop_leaves": 0.6,
+   "gift": 22,
+   "buy": 3200000
+  },
+  "necklace_gold": {
+   "name": "Dây chuyền vàng",
+   "type": "jewelry",
+   "sell": 3000000,
+   "stack": 5,
+   "drop_trash": 0.3,
+   "drop_leaves": 0.4,
+   "gift": 25,
+   "buy": 4800000
+  },
+  "banhmi": {
+   "name": "Bánh mì",
+   "type": "food",
+   "sell": 0,
+   "stack": 5,
+   "drop_trash": 0,
+   "drop_leaves": 0,
+   "buy": 20000,
+   "use": {
+    "hunger": 35
+   }
+  },
+  "mi_ly": {
+   "name": "Mì ly",
+   "type": "food",
+   "sell": 0,
+   "stack": 5,
+   "drop_trash": 0,
+   "drop_leaves": 0,
+   "buy": 15000,
+   "use": {
+    "hunger": 25
+   }
+  },
+  "com_hop": {
+   "name": "Cơm hộp",
+   "type": "food",
+   "sell": 0,
+   "stack": 5,
+   "drop_trash": 0,
+   "drop_leaves": 0,
+   "buy": 40000,
+   "use": {
+    "hunger": 60,
+    "health": 3
+   }
+  },
+  "water": {
+   "name": "Nước lọc",
+   "type": "drink",
+   "sell": 0,
+   "stack": 5,
+   "drop_trash": 0,
+   "drop_leaves": 0,
+   "buy": 5000,
+   "use": {
+    "thirst": 40
+   }
+  },
+  "soda": {
+   "name": "Nước ngọt",
+   "type": "drink",
+   "sell": 0,
+   "stack": 5,
+   "drop_trash": 0,
+   "drop_leaves": 0,
+   "buy": 12000,
+   "use": {
+    "thirst": 35,
+    "mood": 3
+   }
+  },
+  "copper_coil": {
+   "name": "Cuộn dây đồng",
+   "type": "valuable",
+   "sell": 10000000,
+   "stack": 1,
+   "drop_trash": 0,
+   "drop_leaves": 0
+  },
+  "copper_s": {
+   "name": "Vụn dây đồng nhỏ",
+   "type": "valuable",
+   "sell": 100000,
+   "stack": 10,
+   "drop_trash": 0,
+   "drop_leaves": 0
+  },
+  "copper_m": {
+   "name": "Vụn dây đồng",
+   "type": "valuable",
+   "sell": 250000,
+   "stack": 10,
+   "drop_trash": 0,
+   "drop_leaves": 0
+  },
+  "copper_l": {
+   "name": "Bó dây đồng vụn",
+   "type": "valuable",
+   "sell": 500000,
+   "stack": 10,
+   "drop_trash": 0,
+   "drop_leaves": 0
+  }
+ },
+ "money_drops": [
+  [
+   1000,
+   22
+  ],
+  [
+   2000,
+   20
+  ],
+  [
+   5000,
+   18
+  ],
+  [
+   10000,
+   14
+  ],
+  [
+   20000,
+   10
+  ],
+  [
+   50000,
+   7
+  ],
+  [
+   100000,
+   4
+  ],
+  [
+   200000,
+   2
+  ],
+  [
+   500000,
+   3
+  ]
+ ],
+ "dig_outcome": {
+  "trash": {
+   "nothing": 25,
+   "money": 35,
+   "item": 28,
+   "poop": 12
+  },
+  "leaves": {
+   "nothing": 35,
+   "money": 38,
+   "item": 12,
+   "poop": 15
+  }
+ },
+ "food_shop": [
+  "banhmi",
+  "mi_ly",
+  "com_hop",
+  "water",
+  "soda"
+ ],
+ "pcs": [
+  {
+   "name": "Máy cũ (đang dùng)",
+   "price": 0,
+   "view": 0
+  },
+  {
+   "name": "Máy tầm trung",
+   "price": 4000000,
+   "view": 30
+  },
+  {
+   "name": "Máy gaming",
+   "price": 10000000,
+   "view": 60
+  },
+  {
+   "name": "Máy cao cấp",
+   "price": 22000000,
+   "view": 100
+  }
+ ],
+ "gear": {
+  "mic": {
+   "name": "Mic thu âm",
+   "price": 600000,
+   "view": 8,
+   "donate": 12
+  },
+  "mic_pro": {
+   "name": "Mic chuyên nghiệp",
+   "price": 2500000,
+   "view": 8,
+   "donate": 18,
+   "needs": "mic"
+  },
+  "webcam": {
+   "name": "Webcam HD",
+   "price": 800000,
+   "view": 15,
+   "donate": 5
+  },
+  "light": {
+   "name": "Đèn chiếu sáng (ring light)",
+   "price": 500000,
+   "view": 8,
+   "donate": 8
+  },
+  "greenscreen": {
+   "name": "Phông xanh",
+   "price": 700000,
+   "view": 10,
+   "donate": 5
+  },
+  "game_horror": {
+   "name": "Game kinh dị",
+   "price": 300000,
+   "view": 8,
+   "donate": 4
+  },
+  "game_fps": {
+   "name": "Game bắn súng",
+   "price": 500000,
+   "view": 10,
+   "donate": 4
+  },
+  "game_open": {
+   "name": "Game thế giới mở",
+   "price": 1000000,
+   "view": 14,
+   "donate": 6
+  }
+ }
+}

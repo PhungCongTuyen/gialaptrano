@@ -1,0 +1,14 @@
+GIỌNG NÓI CHO CÂU THOẠI
+
+Game tìm file giọng theo tên trong cột "ten_file" của danh_sach_cau_thoai.csv,
+đặt trong thư mục này, đuôi .ogg, .wav hoặc .mp3. Ví dụ: voice/intro_02.mp3
+
+- Có file  -> phát file đó (nên dùng giọng AI / TTS tạo sẵn, chất lượng tốt nhất).
+- Chưa có  -> dùng giọng đọc tiếng Việt có sẵn của Windows (nếu máy đã cài),
+              mỗi nhân vật một cao độ khác nhau.
+- Không có cả hai -> chỉ hiện chữ.
+
+Cài giọng tiếng Việt cho Windows: Settings > Time & language > Speech
+> Add voices > Tiếng Việt. Khởi động lại Godot sau khi cài.
+
+Trong game: phím V bật/tắt giọng nói.

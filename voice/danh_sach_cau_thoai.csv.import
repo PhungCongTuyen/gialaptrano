@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://cptnltjx3q88j"
+
+[deps]
+
+files=["res://voice/danh_sach_cau_thoai.nguoi.translation", "res://voice/danh_sach_cau_thoai.cau.translation"]
+
+source_file="res://voice/danh_sach_cau_thoai.csv"
+dest_files=["res://voice/danh_sach_cau_thoai.nguoi.translation", "res://voice/danh_sach_cau_thoai.cau.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

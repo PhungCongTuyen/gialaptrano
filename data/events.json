@@ -1,0 +1,1038 @@
+{
+ "events": [
+  {
+   "id": "intro",
+   "title": "Ngày đầu tiên",
+   "text": "Bạn mang tờ giấy cho nghỉ việc về nhà. Chưa đầy một tiếng sau, chủ nợ gọi tới nhắc khoản 100 triệu và cho bạn đúng 60 ngày. Vợ bạn ngồi bên cạnh, hỏi sao hôm nay bạn về sớm vậy.",
+   "weight": 0,
+   "choices": [
+    {
+     "label": "Nói thật với vợ",
+     "effects": {
+      "wife": 3,
+      "mood": -4,
+      "flag": "honest"
+     },
+     "result": "Vợ lặng đi rất lâu, rồi nắm tay bạn. \"Mình cùng nghĩ cách.\""
+    },
+    {
+     "label": "Nói dối: \"Hôm nay công ty cho nghỉ\"",
+     "effects": {
+      "mood": -2,
+      "flag": "hid_debt"
+     },
+     "result": "Bạn nuốt khoản nợ xuống. Giấu được bao lâu thì chưa biết."
+    }
+   ]
+  },
+  {
+   "id": "collector_visit",
+   "title": "Chủ nợ gõ cửa",
+   "text": "Tiếng đập cửa vang cả khu. Hai gã lạ mặt đứng ngoài, giọng rất nhẹ nhưng ánh mắt thì không. Bạn đã trễ mốc trả nợ.",
+   "weight": 0,
+   "choices": [
+    {
+     "label": "Xin khất và hứa trả sớm",
+     "effects": {
+      "wife": -8,
+      "health": -8,
+      "danger": -10
+     },
+     "result": "Họ đi, để lại một câu: \"Lần sau không nói chuyện bằng miệng nữa đâu.\" Hàng xóm đều nghe thấy."
+    }
+   ]
+  },
+  {
+   "id": "donate_big",
+   "title": "Donate lớn đêm qua",
+   "text": "Mở máy lên, bạn thấy một người lạ đã donate một khoản khá lớn kèm lời nhắn: \"Cố lên anh ơi.\"",
+   "weight": 6,
+   "choices": [
+    {
+     "label": "Xúc động, cảm ơn",
+     "effects": {
+      "money": [
+       300000,
+       1000000
+      ],
+      "mood": 6
+     },
+     "result": "Bạn đọc lại tin nhắn ba lần."
+    }
+   ],
+   "min_followers": 10
+  },
+  {
+   "id": "wife_nag",
+   "title": "Vợ càm ràm",
+   "text": "Vợ nhìn bạn từ trên xuống: \"Anh stream đến mấy giờ vậy? Tiền đâu chưa thấy, người thì xanh lét.\"",
+   "weight": 8,
+   "choices": [
+    {
+     "label": "Xin lỗi, hứa ngủ sớm",
+     "effects": {
+      "wife": 3,
+      "mood": -2
+     },
+     "result": "Cô ấy thở dài nhưng nét mặt dịu lại."
+    },
+    {
+     "label": "Cãi lại: \"Em có biết anh đang cố vì ai không?\"",
+     "effects": {
+      "wife": -8,
+      "mood": -3
+     },
+     "result": "Cả hai im lặng suốt bữa sáng."
+    },
+    {
+     "label": "Im lặng",
+     "effects": {
+      "wife": -3
+     },
+     "result": "Bạn cúi xuống ăn. Cô ấy đặt mạnh cái chén."
+    }
+   ]
+  },
+  {
+   "id": "wife_breakfast",
+   "title": "Bữa sáng của vợ",
+   "text": "Sáng nay vợ dậy sớm nấu cháo. Cô ấy không nói gì, chỉ đặt tô cháo trước mặt bạn.",
+   "weight": 5,
+   "choices": [
+    {
+     "label": "Ăn thật chậm và cảm ơn",
+     "effects": {
+      "wife": 2,
+      "health": 5,
+      "mood": 5,
+      "hunger": 40
+     },
+     "result": "Một tô cháo đơn giản mà ấm hơn cả tuần qua."
+    }
+   ]
+  },
+  {
+   "id": "creditor_text",
+   "title": "Tin nhắn chủ nợ",
+   "text": "Điện thoại rung: \"Cuối tháng anh nhớ giữ lời nhé. Em không thích nhắc lần hai.\"",
+   "weight": 6,
+   "choices": [
+    {
+     "label": "Trả lời lịch sự, hẹn đúng mốc",
+     "effects": {
+      "danger": -3,
+      "mood": -2
+     },
+     "result": "Họ chỉ thả một cái \"👍\". Lạnh sống lưng."
+    },
+    {
+     "label": "Phớt lờ",
+     "effects": {
+      "danger": 6
+     },
+     "result": "Bạn tắt thông báo. Nhưng nỗi lo thì không tắt được."
+    }
+   ]
+  },
+  {
+   "id": "viewer_hate",
+   "title": "Viewer chửi",
+   "text": "Một nick lạ xuất hiện trong chat đêm qua, chửi bạn là \"streamer rác, lo mà đi xin việc đi\". Nhiều người bắt đầu hùa theo.",
+   "weight": 6,
+   "choices": [
+    {
+     "label": "Mặc kệ",
+     "effects": {
+      "mood": -3
+     },
+     "result": "Bạn tắt thông báo chat. Vẫn lăn tăn."
+    },
+    {
+     "label": "Cãi lại trên chat",
+     "effects": {
+      "mood": 2,
+      "followers": -3
+     },
+     "result": "Hả giận một lúc, nhưng vài người bỏ theo dõi."
+    },
+    {
+     "label": "Khóa chat, ban nick",
+     "effects": {
+      "mood": -1,
+      "followers": -1
+     },
+     "result": "Chat sạch hơn, bạn cũng đỡ mệt."
+    }
+   ],
+   "min_followers": 5
+  },
+  {
+   "id": "pc_glitch",
+   "title": "Máy tính lỗi",
+   "text": "Máy bật lên với tiếng quạt như máy bay cất cánh. Màn hình chớp vài lần rồi lên hình, nhưng bạn biết nó đang yếu đi.",
+   "weight": 7,
+   "choices": [
+    {
+     "label": "Tự vệ sinh, tra keo tản nhiệt",
+     "effects": {
+      "pc_dur": -5,
+      "health": -3
+     },
+     "result": "Hết nửa buổi sáng, máy tạm ổn."
+    },
+    {
+     "label": "Nhờ chủ quán sửa",
+     "effects": {
+      "pc_dur": 20,
+      "money": -300000
+     },
+     "result": "Chủ quán gật gù: \"Máy này sắp đi rồi anh.\"",
+     "requires_money": 300000
+    }
+   ]
+  },
+  {
+   "id": "neighbor_noise",
+   "title": "Hàng xóm phàn nàn",
+   "text": "Cô hàng xóm gõ cửa: \"Em ơi, tối nào cũng la hét giữa khuya thì ai ngủ được?\"",
+   "weight": 5,
+   "choices": [
+    {
+     "label": "Xin lỗi, hứa giảm âm lượng",
+     "effects": {
+      "mood": -2,
+      "wife": 1
+     },
+     "result": "Cô ấy gật đầu."
+    },
+    {
+     "label": "Mặc kệ",
+     "effects": {
+      "wife": -4
+     },
+     "result": "Vợ nghe hết và nhìn bạn rất lâu."
+    }
+   ],
+   "needs": {
+    "new_house": false
+   }
+  },
+  {
+   "id": "old_friend_loan",
+   "title": "Bạn cũ cho mượn tiền",
+   "text": "Thằng bạn cũ nhắn: \"Nghe nói mày khó khăn. Tao có ít tiền nhàn rỗi, mượn không lãi.\"",
+   "weight": 3,
+   "choices": [
+    {
+     "label": "Nhận 2 triệu",
+     "effects": {
+      "money": 2000000,
+      "mood": 4
+     },
+     "result": "Bạn ghi vào sổ nhỏ: phải trả cho nó."
+    },
+    {
+     "label": "Từ chối, tự lo",
+     "effects": {
+      "mood": 2,
+      "wife": 2
+     },
+     "result": "Vợ biết chuyện và khen bạn tự trọng."
+    }
+   ],
+   "min_day": 5,
+   "once": true
+  },
+  {
+   "id": "clip_viral",
+   "title": "Clip được chia sẻ",
+   "text": "Có người cắt một đoạn stream của bạn đăng lên mạng. Lượt xem tăng liên tục suốt đêm.",
+   "weight": 4,
+   "choices": [
+    {
+     "label": "Đăng thêm clip tiếp",
+     "effects": {
+      "followers": [
+       20,
+       60
+      ],
+      "mood": 5
+     },
+     "result": "Hàng chục người lạ bắt đầu theo dõi bạn."
+    }
+   ],
+   "min_followers": 3
+  },
+  {
+   "id": "sick",
+   "title": "Đau đầu vì thức khuya",
+   "text": "Đầu bạn như bị ai siết chặt. Bạn đã ngủ quá ít trong nhiều ngày.",
+   "weight": 5,
+   "choices": [
+    {
+     "label": "Mua thuốc uống (100k)",
+     "effects": {
+      "health": 5,
+      "money": -100000
+     },
+     "result": "Đỡ hơn một chút.",
+     "requires_money": 100000
+    },
+    {
+     "label": "Chịu đựng",
+     "effects": {
+      "health": -5
+     },
+     "result": "Bạn chống cằm gõ bàn phím cả sáng."
+    }
+   ]
+  },
+  {
+   "id": "wife_work",
+   "title": "Vợ bị giảm giờ làm",
+   "text": "Vợ về nhà muộn, im lặng. Cuối cùng cô nói: \"Công ty cắt bớt giờ làm của em rồi.\"",
+   "weight": 3,
+   "choices": [
+    {
+     "label": "An ủi vợ",
+     "effects": {
+      "wife": 6,
+      "mood": -3
+     },
+     "result": "Hai người ngồi cạnh nhau rất lâu."
+    },
+    {
+     "label": "Than thở: \"Anh còn khổ hơn em\"",
+     "effects": {
+      "wife": -4
+     },
+     "result": "Cô ấy quay đi, không nói gì nữa."
+    }
+   ],
+   "min_day": 10
+  },
+  {
+   "id": "mom_call",
+   "title": "Mẹ gọi điện",
+   "text": "Mẹ gọi hỏi thăm. Giọng mẹ vui, nhưng bà đang cố tỏ ra mình không biết gì.",
+   "weight": 3,
+   "choices": [
+    {
+     "label": "Nói dối: \"Con ổn lắm mẹ\"",
+     "effects": {
+      "mood": -3
+     },
+     "result": "Bạn cúp máy rồi ngồi thừ ra."
+    },
+    {
+     "label": "Nhận 1 triệu mẹ gửi",
+     "effects": {
+      "money": 1000000,
+      "mood": -5
+     },
+     "result": "Tiền về tài khoản, kèm lời nhắn: \"Ăn uống cho đủ.\""
+    },
+    {
+     "label": "Từ chối, nói không cần",
+     "effects": {
+      "mood": 2
+     },
+     "result": "Mẹ im một lúc rồi bảo: \"Ừ, nhớ giữ sức khỏe.\""
+    }
+   ],
+   "min_day": 7,
+   "once": true
+  },
+  {
+   "id": "power_cut",
+   "title": "Mất điện cả khu",
+   "text": "Đang ngủ thì quạt ngừng quay. Cả khu mất điện, máy tính tắt ngúm.",
+   "weight": 3,
+   "choices": [
+    {
+     "label": "Ra quán cà phê ngồi chờ",
+     "effects": {
+      "mood": -5,
+      "money": -50000
+     },
+     "result": "Bạn nhìn màn hình đen mà thở dài."
+    }
+   ]
+  },
+  {
+   "id": "sponsor",
+   "title": "Nhãn hàng nhỏ mời quảng cáo",
+   "text": "Một cửa hàng nhắn bạn nhận quảng cáo sản phẩm trong stream. Lời mời nghe hơi \"lùa gà\", nhưng tiền thì thật.",
+   "weight": 4,
+   "choices": [
+    {
+     "label": "Nhận (1,5 triệu)",
+     "effects": {
+      "money": 1500000,
+      "mood": -2
+     },
+     "result": "Bạn đọc kịch bản quảng cáo, thấy hơi ngượng."
+    },
+    {
+     "label": "Từ chối",
+     "effects": {
+      "mood": 1
+     },
+     "result": "Bạn không muốn bán thứ mình không tin."
+    }
+   ],
+   "min_followers": 150
+  },
+  {
+   "id": "shady_offer",
+   "title": "Lời mời \"việc nhẹ lương cao\"",
+   "text": "Một người lạ nhắn: \"Anh em cần người chạy việc nhẹ, 2 triệu một lần. Không hỏi nhiều.\"",
+   "weight": 3,
+   "choices": [
+    {
+     "label": "Nhận 2 triệu",
+     "effects": {
+      "money": 2000000,
+      "danger": 5,
+      "flag": "shady_known"
+     },
+     "result": "Bạn không hỏi, họ cũng không nói. Tiền thì thật."
+    },
+    {
+     "label": "Từ chối",
+     "effects": {
+      "mood": 1
+     },
+     "result": "Bạn chặn số."
+    }
+   ],
+   "min_day": 8,
+   "needs": {
+    "money_below": 5000000
+   }
+  },
+  {
+   "id": "rain",
+   "title": "Trời mưa như trút",
+   "text": "Cả ngày mưa. Bạn ngồi nhìn mưa qua ô cửa, nghĩ về những con số trong đầu.",
+   "weight": 3,
+   "choices": [
+    {
+     "label": "Ngồi nhìn mưa",
+     "effects": {
+      "mood": -3
+     },
+     "result": "Mưa tạnh thì tâm trạng cũng chưa tạnh."
+    }
+   ]
+  },
+  {
+   "id": "landlord_raise",
+   "title": "Chủ trọ tăng giá",
+   "text": "Chủ trọ gõ cửa: \"Tháng này giá điện lên, anh gánh thêm 500 nghìn nhé.\"",
+   "weight": 2,
+   "choices": [
+    {
+     "label": "Chấp nhận",
+     "effects": {
+      "money": -500000
+     },
+     "result": "Bạn móc ví, không nói gì."
+    },
+    {
+     "label": "Cãi lý",
+     "effects": {
+      "mood": -4
+     },
+     "result": "Cuối cùng vẫn phải trả, thêm một bụng bực."
+    }
+   ],
+   "needs": {
+    "new_house": false
+   },
+   "min_day": 5
+  },
+  {
+   "id": "anti_fan",
+   "title": "Anti-fan bôi nhọ",
+   "text": "Có một tài khoản đăng lại những câu nói ngớ ngẩn của bạn, kèm lời mỉa mai.",
+   "weight": 3,
+   "choices": [
+    {
+     "label": "Đăng clip đáp trả",
+     "effects": {
+      "followers": 10,
+      "mood": -3,
+      "wife": -2
+     },
+     "result": "Có người thương hại, có người xem cho vui. Lượt xem tăng."
+    },
+    {
+     "label": "Im lặng cho qua",
+     "effects": {
+      "followers": [
+       -15,
+       -5
+      ],
+      "mood": -6
+     },
+     "result": "Bạn mất vài người theo dõi."
+    }
+   ],
+   "min_followers": 40
+  },
+  {
+   "id": "wife_birthday",
+   "title": "Sinh nhật vợ",
+   "text": "Hôm nay là sinh nhật vợ. Bạn chợt nhận ra mình quên cả ngày hôm nay là ngày mấy.",
+   "weight": 6,
+   "choices": [
+    {
+     "label": "Mua quà bó hoa nhỏ (1 triệu)",
+     "effects": {
+      "wife": 12,
+      "money": -1000000,
+      "mood": 4
+     },
+     "result": "Cô ấy bật cười: \"Anh còn nhớ à.\"",
+     "requires_money": 1000000
+    },
+    {
+     "label": "Nói lời chúc, không quà",
+     "effects": {
+      "wife": 4
+     },
+     "result": "Cô ấy nói không sao. Nhưng nét mặt thì khác."
+    },
+    {
+     "label": "Quên mất",
+     "effects": {
+      "wife": -15,
+      "mood": -3
+     },
+     "result": "Tối hôm đó vợ không nói với bạn câu nào."
+    }
+   ],
+   "min_day": 10,
+   "max_day": 50,
+   "once": true
+  },
+  {
+   "id": "wife_finds_debt",
+   "title": "Vợ phát hiện khoản nợ",
+   "text": "Vợ cầm điện thoại bạn, tin nhắn của chủ nợ còn sáng. Cô ấy đứng bất động.",
+   "weight": 10,
+   "choices": [
+    {
+     "label": "Xin lỗi thật lòng và kể hết",
+     "effects": {
+      "wife": -12,
+      "flag": "told",
+      "mood": -4
+     },
+     "result": "Cô ấy khóc rồi lau nước mắt: \"Sao anh không nói sớm?\""
+    },
+    {
+     "label": "Chối: \"Không có gì đâu\"",
+     "effects": {
+      "wife": -22,
+      "flag": "told",
+      "mood": -6
+     },
+     "result": "Cô ấy nhìn bạn rất lâu. Niềm tin vỡ như thủy tinh."
+    }
+   ],
+   "min_day": 8,
+   "once": true,
+   "needs": {
+    "flag": "hid_debt",
+    "noflag": "told"
+   }
+  },
+  {
+   "id": "wife_helps",
+   "title": "Vợ đưa tiền tiết kiệm",
+   "text": "Vợ đặt một phong bì lên bàn: \"Của em dành dụm. Không nhiều, nhưng mình cùng trả.\"",
+   "weight": 8,
+   "choices": [
+    {
+     "label": "Nhận và hứa sẽ trả lại",
+     "effects": {
+      "money": 1500000,
+      "mood": -3,
+      "wife": 3
+     },
+     "result": "Bạn hứa sẽ không để số tiền ấy mất vô ích."
+    },
+    {
+     "label": "Từ chối, tự lo",
+     "effects": {
+      "wife": 2,
+      "mood": 2
+     },
+     "result": "Cô ấy cười nhẹ: \"Cứng đầu.\""
+    }
+   ],
+   "min_day": 8,
+   "once": true,
+   "needs": {
+    "flag": "honest",
+    "wife_above": 50
+   }
+  },
+  {
+   "id": "spicy_challenge",
+   "title": "Thử thách ăn cay",
+   "text": "Cộng đồng thách bạn ăn mì siêu cay trên stream. Có người hứa donate nếu bạn làm được.",
+   "weight": 4,
+   "choices": [
+    {
+     "label": "Nhận thử thách",
+     "effects": {
+      "health": -8,
+      "followers": 20,
+      "money": 300000,
+      "mood": -2,
+      "thirst": -25
+     },
+     "result": "Nước mắt nước mũi chảy ròng, chat cười như điên."
+    },
+    {
+     "label": "Từ chối",
+     "effects": {
+      "mood": 1
+     },
+     "result": "Bạn giữ cái bao tử của mình."
+    }
+   ],
+   "min_followers": 20
+  },
+  {
+   "id": "neighbor_gift",
+   "title": "Hàng xóm cho đồ ăn",
+   "text": "Bà hàng xóm nhét túi nilon vào tay bạn: \"Nhà nấu dư, cầm lấy đi con.\"",
+   "weight": 3,
+   "choices": [
+    {
+     "label": "Cảm ơn và nhận",
+     "effects": {
+      "health": 4,
+      "mood": 3,
+      "hunger": 30
+     },
+     "result": "Bạn xúc động đến nỗi không biết nói gì."
+    }
+   ]
+  },
+  {
+   "id": "street_ambush",
+   "title": "Đàn em chủ nợ chặn đường",
+   "text": "Hai gã đứng chắn trước mặt bạn trong con hẻm. Một gã mỉm cười: \"Anh trả sớm cho đỡ phiền nhé.\"",
+   "weight": 7,
+   "choices": [
+    {
+     "label": "Đưa 1 triệu tượng trưng",
+     "effects": {
+      "money": -1000000,
+      "danger": -15
+     },
+     "result": "Họ cầm tiền, vỗ vai bạn rồi đi.",
+     "requires_money": 1000000
+    },
+    {
+     "label": "Bỏ chạy",
+     "effects": {
+      "health": -10,
+      "danger": 5
+     },
+     "result": "Bạn chạy thục mạng, ngã mấy lần."
+    },
+    {
+     "label": "Đánh trả",
+     "effects": {
+      "health": -25,
+      "danger": 10
+     },
+     "result": "Bạn đau điếng người. Họ cũng không vui."
+    }
+   ],
+   "needs": {
+    "danger_above": 60
+   }
+  },
+  {
+   "id": "lucky_ticket",
+   "title": "Vé số lẻ",
+   "text": "Lúc dọn bàn bạn thấy một tờ vé số lẻ cũ trong túi. Hóa ra vẫn chưa dò.",
+   "weight": 3,
+   "choices": [
+    {
+     "label": "Dò thử",
+     "effects": {
+      "money": [
+       0,
+       500000
+      ],
+      "mood": 2
+     },
+     "result": "Cũng chỉ là chút may mắn nhỏ nhoi."
+    }
+   ]
+  }
+ ],
+ "wander": [],
+ "trash": [
+  {
+   "weight": 25,
+   "text": "Bạn bới một hồi chỉ thấy toàn rác. Bẩn tay thôi.",
+   "effects": {
+    "mood": -2,
+    "health": -1
+   }
+  },
+  {
+   "weight": 30,
+   "text": "Gom được ít chai lon, bán ve chai được ít tiền.",
+   "effects": {
+    "money": [
+     20000,
+     60000
+    ],
+    "mood": -2
+   }
+  },
+  {
+   "weight": 15,
+   "text": "Một cái ví cũ, bên trong còn ít tiền lẻ.",
+   "effects": {
+    "money": [
+     30000,
+     120000
+    ]
+   }
+  },
+  {
+   "weight": 8,
+   "text": "Chủ nhà thò đầu ra quát: \"Đi chỗ khác!\" Bạn xấu hổ chạy mất.",
+   "effects": {
+    "mood": -6
+   }
+  },
+  {
+   "weight": 8,
+   "text": "Tìm thấy cái tai nghe còn dùng được, bạn mang đi bán lại.",
+   "effects": {
+    "money": [
+     100000,
+     250000
+    ]
+   }
+  },
+  {
+   "weight": 3,
+   "text": "Một phong bì ai đó bỏ quên, bên trong có kha khá tiền!",
+   "effects": {
+    "money": [
+     300000,
+     800000
+    ],
+    "mood": 4
+   }
+  },
+  {
+   "weight": 6,
+   "text": "Bạn đụng phải thứ gì đó kinh khủng. Muốn nôn.",
+   "effects": {
+    "health": -4,
+    "mood": -6
+   }
+  },
+  {
+   "weight": 5,
+   "text": "Một con mèo hoang nhảy ra cào bạn rồi biến mất.",
+   "effects": {
+    "health": -3,
+    "mood": -1
+   }
+  }
+ ],
+ "poop": [
+  {
+   "weight": 30,
+   "text": "Bạn dẫm ngay một bãi phân chó. Cả buổi người ám mùi.",
+   "effects": {
+    "mood": -8
+   }
+  },
+  {
+   "weight": 20,
+   "text": "Bạn dẫm phải phân... nhưng ngay sau đó nhặt được tờ 50 nghìn. Xui mà hóa may?",
+   "effects": {
+    "mood": -3,
+    "money": 50000
+   }
+  },
+  {
+   "weight": 15,
+   "text": "Bạn trượt chân vì bãi phân và ngã sấp. Người qua đường cười ồ.",
+   "effects": {
+    "mood": -10,
+    "health": -3
+   }
+  },
+  {
+   "weight": 10,
+   "text": "Người qua đường quay clip bạn dẫm phân rồi đăng lên mạng. Có người nhớ mặt bạn.",
+   "effects": {
+    "followers": [
+     3,
+     10
+    ],
+    "mood": -8
+   }
+  },
+  {
+   "weight": 10,
+   "text": "Chủ chó xin lỗi rối rít, nhét vào tay bạn 100 nghìn.",
+   "effects": {
+    "mood": -2,
+    "money": 100000
+   }
+  },
+  {
+   "weight": 15,
+   "text": "Bạn nhảy né kịp bãi phân. May quá!",
+   "effects": {
+    "mood": 3
+   }
+  }
+ ],
+ "chat_good": [
+  "\"Streamer cố lên!\"",
+  "\"Hôm nay vui ghê\"",
+  "\"Mới vào mà đã nghiện\"",
+  "\"Follow rồi nhé\"",
+  "\"Hay đấy anh ơi\"",
+  "\"Donate ly cà phê nè\""
+ ],
+ "chat_bad": [
+  "\"Chán quá, tắt đây\"",
+  "\"Máy gì mà lag\"",
+  "\"Lên mạng xin tiền à?\"",
+  "\"Nói nhiều quá\"",
+  "\"Streamer này dở\"",
+  "\"Mới stream mà làm màu\""
+ ],
+ "wife_lines": {
+  "low": [
+   "Vợ chỉ liếc nhìn bạn rồi quay đi. \"Anh cứ làm điều anh muốn.\"",
+   "Cô ấy trả lời cụt lủn. Có cảm giác cả căn phòng lạnh hơn."
+  ],
+  "mid": [
+   "Vợ ngồi xuống cạnh bạn. \"Em lo cho anh, đừng thức khuya quá nhé.\"",
+   "Cô ấy hỏi han chuyện stream, vẻ mặt vừa lo vừa tò mò."
+  ],
+  "high": [
+   "Vợ dựa vào vai bạn. \"Dù thế nào thì em vẫn ở đây.\"",
+   "Cô ấy cười: \"Hôm nay trông anh bớt mệt hơn rồi đó.\""
+  ]
+ },
+ "endings": {
+  "happy": {
+   "title": "KẾT THÚC TỐT: Món nợ cuối cùng",
+   "text": "Bạn đặt khoản tiền cuối cùng lên bàn chủ nợ. Ông ta gật đầu, gạch tên bạn khỏi sổ. Bước ra ngoài, vợ đang đứng đợi, tay cầm hai ly nước mía. Cô ấy không hỏi gì, chỉ nắm tay bạn. Còn rất nhiều việc phải làm, nhưng bây giờ hai người cùng nhìn về một hướng."
+  },
+  "ok": {
+   "title": "KẾT THÚC: Hết nợ, nhưng không còn mặn nồng",
+   "text": "Nợ đã trả xong. Bạn về nhà, vợ chỉ gật đầu: \"Thế là xong rồi.\" Bữa cơm tối hôm đó im lặng. Hai người vẫn ở cùng một nhà, nhưng những ngày cày ngày cày đêm đã để lại một khoảng cách mà tiền không lấp được."
+  },
+  "bad_debt": {
+   "title": "KẾT THÚC XẤU: Chiếc đàn của bố",
+   "text": "Ngày thứ 60 trôi qua mà món nợ vẫn còn. Bạn gói ghém đồ đạc trong đêm, trốn về quê. Bố mẹ nghe chuyện, im lặng rất lâu, rồi mẹ lấy chiếc đàn cổ bố để lại trước khi mất, mang đi bán để trả nợ thay bạn. Tiếng đàn ấy bạn sẽ không bao giờ được nghe lại. Bạn ân hận suốt đời."
+  },
+  "wife_left": {
+   "title": "KẾT THÚC XẤU: Chiếc vali trống",
+   "text": "Sáng đó bạn tỉnh dậy, chiếc tủ quần áo của vợ trống rỗng. Trên bàn chỉ có một mảnh giấy: \"Em mệt rồi.\" Nợ vẫn còn, và giờ bạn phải gánh một mình."
+  },
+  "hospital": {
+   "title": "KẾT THÚC XẤU: Trần nhà bệnh viện",
+   "text": "Bạn tỉnh dậy trên giường bệnh, bóng đèn trắng nhức mắt. Bác sĩ nói bạn suy kiệt. Trong khi bạn nằm đây, khoản nợ vẫn chạy từng ngày."
+  },
+  "exhausted": {
+   "title": "KẾT THÚC XẤU: Sức cùng lực kiệt",
+   "text": "Lần thứ tư bạn gục xuống, người ta phải gọi xe cấp cứu. Bạn nhập viện trong tình trạng sức cùng lực kiệt. Bác sĩ nói cơ thể bạn đã bị vắt kiệt quá lâu, cần nghỉ ngơi dài ngày và không thể làm việc nặng nữa. Khoản nợ vẫn nằm đó, nhưng bạn không còn khả năng lao động để trả."
+  },
+  "wife_left_27": {
+   "title": "KẾT THÚC XẤU: Vợ về nhà ngoại",
+   "text": "Hết ngày 27, hai người vẫn ở trong căn phòng chật, ánh đèn stream vẫn rọi thẳng vào giường mỗi đêm. Sáng hôm sau vợ xếp đồ vào vali: \"Em về nhà mẹ một thời gian.\" Cô ấy không quay lại. Bạn ngồi trước màn hình tắt, không còn lý do để cố nữa. Bạn mất động lực, và thất bại."
+  },
+  "jail": {
+   "title": "KẾT THÚC XẤU: Song sắt",
+   "text": "Lần thứ ba bị bảo vệ công trường tóm, lần này họ gọi công an. Bạn bị tạm giữ vì tội trộm cắp tài sản. Món nợ vẫn còn đó, vợ phải đi vay mượn khắp nơi để lo cho bạn. Ngồi sau song sắt, bạn tự hỏi mình đã đi lạc từ lúc nào."
+  }
+ },
+ "leaves": [
+  {
+   "weight": 40,
+   "text": "Toàn lá khô với lá khô. Bạn phủi tay đứng dậy.",
+   "effects": {
+    "mood": -1
+   }
+  },
+  {
+   "weight": 25,
+   "text": "Dưới lớp lá có vài đồng xu và tờ tiền lẻ nhàu nát.",
+   "effects": {
+    "money": [
+     5000,
+     30000
+    ]
+   }
+  },
+  {
+   "weight": 12,
+   "text": "Một tờ tiền bị gió thổi kẹt dưới đụn lá. Hôm nay may thật!",
+   "effects": {
+    "money": [
+     50000,
+     200000
+    ],
+    "mood": 3
+   }
+  },
+  {
+   "weight": 10,
+   "text": "Bạn nhặt được chiếc bật lửa còn mới, mang đi bán được ít tiền.",
+   "effects": {
+    "money": [
+     10000,
+     30000
+    ]
+   }
+  },
+  {
+   "weight": 8,
+   "text": "Một con gián bò ra từ đụn lá. Bạn hét toáng lên.",
+   "effects": {
+    "mood": -4
+   }
+  },
+  {
+   "weight": 5,
+   "text": "Một sợi dây chuyền bạc rơi lẫn trong lá! Bán ở tiệm cầm đồ được kha khá.",
+   "effects": {
+    "money": [
+     300000,
+     700000
+    ],
+    "mood": 5
+   }
+  }
+ ],
+ "poop_pile": [
+  {
+   "weight": 40,
+   "text": "Tay bạn thọc trúng một bãi phân chó giấu dưới đụn. Mùi bám mãi không đi.",
+   "effects": {
+    "mood": -10
+   }
+  },
+  {
+   "weight": 20,
+   "text": "Bạn bốc phải phân... nhưng ngay bên dưới có tờ 50 nghìn. Rửa tay đi rồi tính.",
+   "effects": {
+    "mood": -4,
+    "money": 50000
+   }
+  },
+  {
+   "weight": 20,
+   "text": "Bạn bốc phải phân, giật mình ngã ngồi xuống vỉa hè. Người qua đường cười ồ.",
+   "effects": {
+    "mood": -12,
+    "health": -2
+   }
+  },
+  {
+   "weight": 20,
+   "text": "Có người quay lại cảnh bạn bốc phải phân và đăng lên mạng. Nhục, nhưng có người nhớ mặt bạn.",
+   "effects": {
+    "mood": -8,
+    "followers": [
+     3,
+     10
+    ]
+   }
+  }
+ ],
+ "wife_talk": [
+  "Vợ kể hôm nay sếp ở công ty lại bắt cả phòng họp tới tối. \"Em mệt quá, nhưng thôi, còn có việc là may rồi.\"",
+  "Vợ hỏi: \"Hôm nay stream có ai xem không anh?\" Rồi cô ấy cười khi bạn kể về một người xem tên lạ hoắc.",
+  "Vợ nhắc chuyện hồi hai người mới quen, lúc cả hai còn chưa có gì trong tay. \"Hồi đó nghèo mà vui anh nhỉ.\"",
+  "Vợ khoe đồng nghiệp cho một túi xoài. \"Mai em gọt cho anh ăn.\"",
+  "Vợ thở dài: \"Giá rau ngoài chợ lại lên rồi.\" Bạn chỉ biết gật đầu.",
+  "Vợ hỏi bạn có muốn về quê thăm bố mẹ khi mọi chuyện ổn hơn không.",
+  "Vợ kể cô bạn thân sắp cưới. \"Đám cưới mình hồi đó đơn giản ghê anh ha.\"",
+  "Vợ xoa vai cho bạn. \"Anh đừng gồng một mình, có gì cứ nói với em.\"",
+  "Vợ cằn nhằn nhẹ vì bạn để cốc mì ăn dở trên bàn máy tính.",
+  "Vợ hỏi đùa: \"Bao giờ anh nổi tiếng thì nhớ nhắc tên em trên stream nhé.\"",
+  "Vợ kể hôm nay xe buýt đông kinh khủng, cô ấy phải đứng suốt chặng đường.",
+  "Vợ im lặng một lúc rồi nói: \"Em tin anh làm được.\""
+ ],
+ "wife_ignore": [
+  "\"Anh lúc nào cũng chỉ có cái máy tính. Em nói gì anh cũng không nghe.\"",
+  "\"Thôi, anh cứ làm đi. Em quen rồi.\"",
+  "\"Mai em còn phải đi làm sớm đấy. Anh có nghĩ cho em không?\"",
+  "\"Anh định sống với cái màn hình đó luôn à?\""
+ ],
+ "wife_leave": [
+  "Em đi làm đây, anh làm gì thì làm, giữ sức khỏe nhé.",
+  "Em đi làm đây. Anh nhớ ăn sáng, đừng ngồi máy cả ngày.",
+  "Em đi nhé. Tối em về, anh đừng thức khuya quá.",
+  "Em đi làm đây. Có gì thì nhắn em.",
+  "Em đi đây, anh nhớ khóa cửa. Giữ sức khỏe anh nhé."
+ ],
+ "npc_lines": {
+  "general": [
+   "Dạo này giá cái gì cũng tăng, sống khổ thật.",
+   "Nghe nói công ty đầu ngõ cũng cho nghỉ bớt người, thay bằng máy hết rồi.",
+   "Cậu ở dãy nhà cuối đúng không? Trông quen quen.",
+   "Trời này nóng quá, chỉ muốn ngồi quán trà đá cả ngày.",
+   "Chiều nay quán ăn đầu ngõ có món mới đấy, ra ăn thử đi.",
+   "Tiệm vàng dạo này đông khách, nghe nói giá vàng lên lắm.",
+   "Cái công trường bỏ hoang kia bỏ mấy năm rồi, chẳng ai dám vào.",
+   "Thằng con nhà tôi suốt ngày xem mấy đứa stream, chẳng chịu học hành.",
+   "Chú Tư ve chai ấy, tốt bụng lắm, mua giá cũng sòng phẳng.",
+   "Đi đâu mà vội thế, chậm lại tí cho đời nó thong thả."
+  ],
+  "morning": [
+   "Sáng sớm đã ra đường rồi à? Chăm thế.",
+   "Ăn sáng chưa? Đầu ngõ có bà bán xôi ngon lắm.",
+   "Sáng nào cũng tắc đường, ngán thật."
+  ],
+  "evening": [
+   "Tối rồi, về sớm đi, khuya khuya ngoài này không yên đâu.",
+   "Nghe nói đêm qua có người bị trấn ở đường ngang dưới đấy, cẩn thận.",
+   "Vợ cậu đi làm về chưa? Thấy cô ấy chăm lắm."
+  ],
+  "group": [
+   "Bọn tôi đang bàn chuyện đám cưới nhà ông Năm, cậu đi không?",
+   "Đang kể chuyện thằng cháu đi xuất khẩu lao động về, xây nhà to lắm.",
+   "Ba người đang tranh luận xem đội nào vô địch năm nay, cậu nghĩ sao?",
+   "Đứng đây tán gẫu chút thôi, về nhà lại bị vợ sai việc."
+  ],
+  "fan": [
+   "Ơ, anh là streamer gì đó đúng không? Hôm qua em xem anh chơi đấy!",
+   "Con tôi bảo cậu stream vui lắm, cố lên nhé.",
+   "Ê, cái clip anh dẫm phân lên mạng đấy, cười đau bụng!"
+  ],
+  "danger": [
+   "Mấy hôm nay có mấy gã lạ mặt hỏi thăm nhà cậu đấy, cẩn thận.",
+   "Cậu nợ ai à? Thấy có người đứng trước cửa nhà cậu lâu lắm."
+  ]
+ },
+ "epilogue": {
+  "sold_to_ai": "Thỉnh thoảng bạn lướt thấy một kênh AI mang khuôn mặt và giọng nói của mình, vẫn đang live, vẫn cười. Nó kiếm tiền tốt hơn bạn ngày xưa.",
+  "refused_ai": "Bạn đã không bán chính mình cho AI. Có những người xem vẫn nhớ điều đó."
+ }
+}

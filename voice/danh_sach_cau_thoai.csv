@@ -1,0 +1,70 @@
+﻿ten_file,nguoi_noi,cau_thoai
+intro_01,VĂN PHÒNG  ·  4:45 CHIỀU,"Một buổi chiều như mọi buổi chiều. Màn hình đầy bảng số liệu, và trên bàn bạn là bản báo cáo tuần chưa nộp."
+intro_02,Linh (đồng nghiệp),Anh ơi! Giám đốc bảo anh lên phòng gặp ông ấy ngay ạ.
+intro_03,Linh (đồng nghiệp),"Dạ, em báo lại với sếp nhé. Anh lên phòng giám đốc đi ạ."
+intro_04,Linh (đồng nghiệp),Dạ... anh nhớ lên sớm nhé. Nhìn sếp có vẻ không vui lắm.
+intro_05,Tôi (nghĩ thầm),Chắc là cần mình nộp báo cáo đây.
+intro_06,Tôi (nghĩ thầm),Đủ rồi. Mang lên phòng giám đốc thôi.
+intro_07,PHÒNG GIÁM ĐỐC,"Căn phòng im lặng đến mức nghe rõ tiếng điều hòa. Giám đốc ngồi sau bàn, chưa ngẩng đầu lên ngay."
+intro_08,Giám đốc,"Ngồi đi. Tôi sẽ nói thẳng, vì tôi biết cậu không thích vòng vo."
+intro_08b,Giám đốc,"Ngồi đi. Tôi sẽ nói thẳng, vì tôi biết cậu không thích vòng vo. Báo cáo cậu cứ để đó, có lẽ cũng không cần đọc nữa."
+intro_09,Giám đốc,"Tuần trước công ty đã đưa hệ thống AI mới vào vận hành. Nó làm việc của cậu nhanh hơn, rẻ hơn, và không bao giờ xin nghỉ phép."
+intro_10,Tôi,Ý sếp là... tôi bị cho nghỉ việc?
+intro_11,Giám đốc,"Tôi rất tiếc. Hôm nay là ngày làm việc cuối cùng của cậu. Giấy cho nghỉ việc để trên bàn, cậu nhận đi."
+intro_12,RỜI CÔNG TY,"Bạn cầm tờ giấy lên. Chữ ký, con dấu đỏ, và cái tên của bạn. Ngần ấy năm làm việc, hóa ra chỉ cần một tờ giấy để kết thúc."
+day1_01,Tôi (độc thoại),Bị đuổi việc rồi... Phải làm gì để trả hết số nợ này đây?
+day1_02,Tôi (độc thoại),"Mình thử làm livestream vậy. Dù gì thì mình cũng chỉ biết chơi game, trong lúc tìm việc mới."
+day1_03,Vợ,"Tiền nhà tháng này sắp phải đóng rồi, mà giờ không có tiền thì chúng mình làm sao đây?"
+day1_04,Người dẫn chuyện,RẦM! RẦM! RẦM! Có ai đó đang đập cửa rất mạnh.
+day1_05,Chủ nợ,"Còn 2 tháng nữa phải đóng hết số tiền 100 triệu. Lo mà trả đi, không thì mày và vợ mày tới công chuyện với tao."
+day1_06,Chủ nợ,Mày nên giữ lời hứa thì tốt hơn.
+day1_07,Chủ nợ,"Á à, mày thích thái độ với tao à? Nhớ đấy."
+tut_lockpick,Người dẫn chuyện,"Bạn vừa có một chiếc lockpick, dụng cụ cạy khóa. Khu công trường bỏ hoang có cổng đang khóa. Hãy đến cổng, nhìn vào ổ khóa và bấm E để cạy."
+end_bad_debt,Người dẫn chuyện,"Ngày thứ 60 trôi qua. Chủ nợ không gọi, không nhắn. Họ chỉ đến, đúng lúc bạn mở cửa. Khoản nợ còn lại cộng thêm tiền lãi, và cả những thứ không tính được bằng tiền. Bạn nhận ra mình đã chạy rất nhanh, nhưng chưa bao giờ đủ."
+end_happy,Người dẫn chuyện,"Bạn đặt khoản tiền cuối cùng lên bàn chủ nợ. Ông ta gật đầu, gạch tên bạn khỏi sổ. Bước ra ngoài, vợ đang đứng đợi, tay cầm hai ly nước mía. Cô ấy không hỏi gì, chỉ nắm tay bạn. Còn rất nhiều việc phải làm, nhưng ít ra bây giờ hai người cùng nhìn về một hướng."
+end_hospital,Người dẫn chuyện,"Bạn tỉnh dậy trên giường bệnh, bóng đèn trắng nhức mắt. Bác sĩ nói bạn suy kiệt. Trong khi bạn nằm đây, khoản nợ vẫn chạy từng ngày."
+end_ok,Người dẫn chuyện,"Nợ đã hết, nhưng cái giá không chỉ là tiền. Căn nhà vẫn còn đó, vợ vẫn còn đó, nhưng giữa hai người có những khoảng lặng mà trước đây không có. Bạn biết mình còn một món nợ khác phải trả."
+end_wife_left,Người dẫn chuyện,"Sáng đó bạn tỉnh dậy, chiếc tủ quần áo của vợ trống rỗng. Trên bàn chỉ có một mảnh giấy: ""Em mệt rồi."" Nợ vẫn còn, và giờ bạn phải gánh một mình."
+ev_anti_fan,Người dẫn chuyện,"Có một tài khoản đăng lại những câu nói ngớ ngẩn của bạn, kèm lời mỉa mai."
+ev_clip_viral,Người dẫn chuyện,Có người cắt một đoạn stream của bạn đăng lên mạng. Lượt xem tăng liên tục suốt đêm.
+ev_collector_visit,Người dẫn chuyện,"Tiếng đập cửa vang cả khu. Hai gã lạ mặt đứng ngoài, giọng rất nhẹ nhưng ánh mắt thì không. Bạn đã trễ mốc trả nợ."
+ev_creditor_text,Người dẫn chuyện,"Điện thoại rung: ""Cuối tháng anh nhớ giữ lời nhé. Em không thích nhắc lần hai."""
+ev_donate_big,Người dẫn chuyện,"Mở máy lên, bạn thấy một người lạ đã donate một khoản khá lớn kèm lời nhắn: ""Cố lên anh ơi."""
+ev_intro,Người dẫn chuyện,"Bạn mang tờ giấy cho nghỉ việc về nhà. Chưa đầy một tiếng sau, chủ nợ gọi tới nhắc khoản 100 triệu và cho bạn đúng 60 ngày. Vợ bạn ngồi bên cạnh, hỏi sao hôm nay bạn về sớm vậy."
+ev_landlord_raise,Người dẫn chuyện,"Chủ trọ gõ cửa: ""Tháng này giá điện lên, anh gánh thêm 500 nghìn nhé."""
+ev_lucky_ticket,Người dẫn chuyện,Lúc dọn bàn bạn thấy một tờ vé số lẻ cũ trong túi. Hóa ra vẫn chưa dò.
+ev_mom_call,Người dẫn chuyện,"Mẹ gọi hỏi thăm. Giọng mẹ vui, nhưng bà đang cố tỏ ra mình không biết gì."
+ev_neighbor_gift,Người dẫn chuyện,"Bà hàng xóm nhét túi nilon vào tay bạn: ""Nhà nấu dư, cầm lấy đi con."""
+ev_neighbor_noise,Người dẫn chuyện,"Cô hàng xóm gõ cửa: ""Em ơi, tối nào cũng la hét giữa khuya thì ai ngủ được?"""
+ev_old_friend_loan,Người dẫn chuyện,"Thằng bạn cũ nhắn: ""Nghe nói mày khó khăn. Tao có ít tiền nhàn rỗi, mượn không lãi."""
+ev_pc_glitch,Người dẫn chuyện,"Máy bật lên với tiếng quạt như máy bay cất cánh. Màn hình chớp vài lần rồi lên hình, nhưng bạn biết nó đang yếu đi."
+ev_power_cut,Người dẫn chuyện,"Đang ngủ thì quạt ngừng quay. Cả khu mất điện, máy tính tắt ngúm."
+ev_rain,Người dẫn chuyện,"Cả ngày mưa. Bạn ngồi nhìn mưa qua ô cửa, nghĩ về những con số trong đầu."
+ev_shady_offer,Người dẫn chuyện,"Một người lạ nhắn: ""Anh em cần người chạy việc nhẹ, 4 triệu một lần. Không hỏi nhiều."""
+ev_sick,Người dẫn chuyện,Đầu bạn như bị ai siết chặt. Bạn đã ngủ quá ít trong nhiều ngày.
+ev_spicy_challenge,Người dẫn chuyện,Cộng đồng thách bạn ăn mì siêu cay trên stream. Có người hứa donate nếu bạn làm được.
+ev_sponsor,Người dẫn chuyện,"Một cửa hàng nhắn bạn nhận quảng cáo sản phẩm trong stream. Lời mời nghe hơi ""lùa gà"", nhưng tiền thì thật."
+ev_street_ambush,Người dẫn chuyện,"Hai gã đứng chắn trước mặt bạn trong con hẻm. Một gã mỉm cười: ""Anh trả sớm cho đỡ phiền nhé."""
+ev_viewer_hate,Người dẫn chuyện,"Một nick lạ xuất hiện trong chat đêm qua, chửi bạn là ""streamer rác, lo mà đi xin việc đi"". Nhiều người bắt đầu hùa theo."
+ev_wife_birthday,Người dẫn chuyện,Hôm nay là sinh nhật vợ. Bạn chợt nhận ra mình quên cả ngày hôm nay là ngày mấy.
+ev_wife_breakfast,Người dẫn chuyện,"Sáng nay vợ dậy sớm nấu cháo. Cô ấy không nói gì, chỉ đặt tô cháo trước mặt bạn."
+ev_wife_finds_debt,Người dẫn chuyện,"Vợ cầm điện thoại bạn, tin nhắn của chủ nợ còn sáng. Cô ấy đứng bất động."
+ev_wife_helps,Người dẫn chuyện,"Vợ đặt một phong bì lên bàn: ""Của em dành dụm. Không nhiều, nhưng mình cùng trả."""
+ev_wife_nag,Người dẫn chuyện,"Vợ nhìn bạn từ trên xuống: ""Anh stream đến mấy giờ vậy? Tiền đâu chưa thấy, người thì xanh lét."""
+ev_wife_work,Người dẫn chuyện,"Vợ về nhà muộn, im lặng. Cuối cùng cô nói: ""Công ty cắt bớt giờ làm của em rồi."""
+stream_wife,Vợ,"Anh ơi nghỉ đi, em không ngủ được đâu, sáng quá."
+stream_off,Tôi,"Tôi off stream ở đây nhé anh em, hẹn gặp lại anh em vào ngày mai."
+wife_cooked,Vợ,"Hôm nay em có nấu cơm, anh ăn đi nhé còn làm việc."
+wife_overtime,Vợ,Hôm nay em làm tăng ca nên ăn luôn ở công ty rồi.
+warn_awake,Người dẫn chuyện,"Bạn sắp ngất rồi, cần nghỉ ngơi."
+day19_01,Vợ,Anh ơi... mấy hôm nay đêm nào em cũng không ngủ được vì đèn stream sáng quá. Sáng ra đi làm em cứ lờ đờ. Mình tìm chỗ nào rộng hơn được không anh?
+day19_02,Tôi,"Ừ... anh xin lỗi. Để anh tính. Đầu ngõ có căn nhà cho thuê rộng hơn, anh sẽ cố thuê bằng được."
+day31_01,Linh,"Ơ, anh! Lâu lắm mới gặp. Em ra đây ăn trưa... Từ hôm anh nghỉ, công ty dùng AI loạn hết cả lên, giờ đến lượt em cũng sắp bị cắt rồi."
+day31_02,Linh,"À mà anh ở xóm này đúng không? Người ta đồn cái công trường bỏ hoang ấy, ông chủ thầu ôm tiền bỏ trốn, còn giấu cả đống đồ trong đó. Có cuộn dây đồng to lắm, bán phải chục triệu."
+day31_03,Tôi (nghĩ thầm),Cuộn dây đồng chục triệu... Nhưng công trường lúc nào cũng có bảo vệ.
+day32_hint,Chú Tư,"Cháu ơi, chú mới về được ít đồ nghề đặc biệt, cái loại mở được ổ khóa ấy. Cần thì qua chỗ chú."
+day36_news,Người dẫn chuyện,"Loa phường thông báo: ngày mai cả khu phố đi lễ hội ở nhà văn hóa. Nghe nói bảo vệ công trường bỏ hoang cũng đi, ngày mai cổng không có ai canh."
+day37_think,Tôi (nghĩ thầm),"Hôm nay cả xóm đi lễ hội, cổng công trường không có ai gác. Nếu có lockpick thì đây là cơ hội."
+day46_offer,Người từ công ty cũ,Công ty muốn mua bản quyền giọng nói và khuôn mặt của anh. Từ nay AI sẽ live thay anh.
+day46_sell,Tôi (nghĩ thầm),Hai mươi triệu. Món nợ nhẹ đi một chút. Còn mình... từ giờ là ai?
+day46_refuse,Tôi,"Cảm ơn, nhưng tôi không bán chính mình. Bị AI cướp việc một lần là đủ rồi."

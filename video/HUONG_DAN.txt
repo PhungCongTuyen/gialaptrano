@@ -1,0 +1,6 @@
+VIDEO CHO MÀN HÌNH LIVESTREAM
+
+Đặt các video gameplay vào thư mục này dưới dạng .ogv (Ogg Theora - định dạng video Godot đọc được).
+Mỗi buổi stream game chọn ngẫu nhiên 1 video để chiếu. Chưa có video thì hiện khung giữ chỗ.
+
+Gửi video .mp4 cho Claude, Claude sẽ tự chuyển sang .ogv và đặt vào đây.
