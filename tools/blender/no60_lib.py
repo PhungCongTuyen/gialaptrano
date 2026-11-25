@@ -31,10 +31,12 @@ def write_glb(path, parts):
         vf, pn, pa, cos_lim = _smooth_normals(me, ang)
         mats = [s.material for s in ob.material_slots] or [None]
         vmaps = {}
+        ca = me.color_attributes.get("Col")
+        vcols = [tuple(ca.data[i].color) for i in range(len(me.vertices))] if (ca is not None and ca.domain == 'POINT') else None
         for tri in me.loop_triangles:
             m = mats[tri.material_index] if tri.material_index < len(mats) else mats[0]
             key_m = m.name if m else "_default"
-            P = prims.setdefault(key_m, {"pos": [], "nor": [], "idx": [], "mat": m})
+            P = prims.setdefault(key_m, {"pos": [], "nor": [], "col": [], "idx": [], "mat": m})
             vmap = vmaps.setdefault(key_m, {})
             fn = pn[tri.polygon_index]
             for vi in tri.vertices:
@@ -50,6 +52,7 @@ def write_glb(path, parts):
                     vmap[key] = len(P["pos"])
                     P["pos"].append((v.x, v.z, -v.y))
                     P["nor"].append((nn.x, nn.z, -nn.y))
+                    P["col"].append(vcols[vi] if vcols else (1.0, 1.0, 1.0, 1.0))
                 P["idx"].append(vmap[key])
         oe.to_mesh_clear()
     pad = lambda b: b + b"\x00" * ((4 - len(b) % 4) % 4)
@@ -59,16 +62,18 @@ def write_glb(path, parts):
         pb = pad(b"".join(struct.pack("<3f", *p) for p in P["pos"]))
         nb = pad(b"".join(struct.pack("<3f", *n) for n in P["nor"]))
         ib = pad(b"".join(struct.pack("<I", k) for k in P["idx"]))
+        cb = pad(b"".join(struct.pack("<4f", *c) for c in P["col"]))
         base = len(views)
-        for blob, tgt in ((pb, 34962), (nb, 34962), (ib, 34963)):
+        for blob, tgt in ((pb, 34962), (nb, 34962), (ib, 34963), (cb, 34962)):
             views.append({"buffer": 0, "byteOffset": len(binb), "byteLength": len(blob), "target": tgt})
             binb += blob
         mn = [min(p[k] for p in P["pos"]) for k in range(3)]
         mx = [max(p[k] for p in P["pos"]) for k in range(3)]
         accs += [{"bufferView": base, "componentType": 5126, "count": len(P["pos"]), "type": "VEC3", "min": mn, "max": mx},
                  {"bufferView": base + 1, "componentType": 5126, "count": len(P["nor"]), "type": "VEC3"},
-                 {"bufferView": base + 2, "componentType": 5125, "count": len(P["idx"]), "type": "SCALAR"}]
-        gprims.append({"attributes": {"POSITION": 3 * i, "NORMAL": 3 * i + 1}, "indices": 3 * i + 2, "material": i})
+                 {"bufferView": base + 2, "componentType": 5125, "count": len(P["idx"]), "type": "SCALAR"},
+                 {"bufferView": base + 3, "componentType": 5126, "count": len(P["col"]), "type": "VEC4"}]
+        gprims.append({"attributes": {"POSITION": 4 * i, "NORMAL": 4 * i + 1, "COLOR_0": 4 * i + 3}, "indices": 4 * i + 2, "material": i})
         m = P["mat"]
         col, rough, metal, alpha = [0.8, 0.8, 0.8, 1.0], 0.6, 0.0, 1.0
         if m and m.use_nodes and "Principled BSDF" in m.node_tree.nodes:
@@ -218,9 +223,51 @@ POSES = {
 }
 
 
-def build_hand(sc, name, pose, skin_mat, sleeve_mat, voxel=0.0022):
+def _nail(bm, c, d, n, r, length):
+    """móng tay: viên dẹt nằm trên mặt lưng đốt cuối"""
+    tmp = bmesh.new()
+    capsule(tmp, c - d * length * 0.5, c + d * length * 0.42, r, r * 0.92, seg=12, rings=3)
+    for v in tmp.verts:
+        rel = v.co - c
+        v.co = c + rel - n * rel.dot(n) * 0.72
+    me = bpy.data.meshes.new("_tmp_nail"); tmp.to_mesh(me); tmp.free()
+    bm.from_mesh(me); bpy.data.meshes.remove(me)
+
+
+def _skin_tint(ob, tips, knuckles):
+    """màu đỉnh: đầu ngón & khớp hồng đỏ hơn, lòng bàn tay sáng, mu tay/cẳng tay rám hơn"""
+    me = ob.data
+    ca = me.color_attributes.get("Col") or me.color_attributes.new("Col", 'FLOAT_COLOR', 'POINT')
+    for i, v in enumerate(me.vertices):
+        p = v.co
+        c = Vector((1.0, 1.0, 1.0))
+        if p.y > -0.03:
+            if p.z < -0.008:
+                c = Vector((1.04, 0.99, 0.96))          # lòng bàn tay
+            elif p.z > 0.008:
+                c = Vector((0.97, 0.94, 0.92))          # mu bàn tay
+        else:
+            t = min(1.0, (-0.03 - p.y) / 0.3)
+            c = Vector((0.97, 0.93, 0.89)) if p.z > 0 else Vector((1.02, 1.0, 0.97))  # cẳng tay ngoài rám, trong sáng
+            c = c.lerp(Vector((0.95, 0.9, 0.86)), t * 0.5)
+        for tp in tips:
+            dd = (p - tp).length
+            if dd < 0.016:
+                w = (1 - dd / 0.016) ** 1.5
+                c = c.lerp(Vector((1.0, 0.8, 0.78)), w * 0.6)
+        for kp in knuckles:
+            dd = (p - kp).length
+            if dd < 0.013 and p.z > kp.z - 0.002:
+                w = (1 - dd / 0.013)
+                c = c.lerp(Vector((0.93, 0.78, 0.74)), w * 0.45)
+        ca.data[i].color = (c.x, c.y, c.z, 1.0)
+
+
+def build_hand(sc, name, pose, skin_mat, sleeve_mat, voxel=0.0022, nail_mat=None):
     P = POSES[pose]
     bm = bmesh.new()
+    bm_nail = bmesh.new()
+    tips, knuckles = [], []
     # lòng bàn tay: khối elip thuôn, bo tròn
     loft(bm, [(Vector((0, -0.012, 0.0)), 0.029, 0.019), (Vector((0, 0.012, -0.001)), 0.035, 0.018),
               (Vector((0.002, 0.045, -0.002)), 0.04, 0.016), (Vector((0.002, 0.08, -0.002)), 0.042, 0.0145),
@@ -240,12 +287,18 @@ def build_hand(sc, name, pose, skin_mat, sleeve_mat, voxel=0.0022):
         p = Vector((fx, fy, -0.002))
         a = 0.0
         r = r0
+        side_ax = Vector((math.cos(spread), -math.sin(spread), 0.0))
         for k, L in enumerate(lens):
+            knuckles.append(p.copy())
             a += math.radians(curl[k])
             d = Vector((math.sin(spread) * math.cos(a), math.cos(spread) * math.cos(a), -math.sin(a)))
             q = p + d * L
             r2 = r * 0.86
             capsule(bm, p, q, r, r2, seg=10, rings=3)
+            if k == len(lens) - 1:
+                nrm = side_ax.cross(d).normalized()
+                tips.append(q.copy())
+                _nail(bm_nail, q - d * 0.0068 + nrm * (r2 * 0.98), d, nrm, r2 * 0.68, 0.0115)
             p, r = q, r2
     # ngón cái
     th = P["thumb"]
@@ -260,6 +313,9 @@ def build_hand(sc, name, pose, skin_mat, sleeve_mat, voxel=0.0022):
     d2 = (Matrix.Rotation(math.radians(th["bend"][0] + th["bend"][1]), 3, ax) @ d0).normalized()
     m3 = m2 + d2 * 0.026
     capsule(bm, m2, m3, 0.0098, 0.0085, seg=10, rings=3)
+    tips.append(m3.copy()); knuckles += [m1.copy(), m2.copy()]
+    tn = Vector((-0.7, 0.0, 0.7)); tn = (tn - d2 * tn.dot(d2)).normalized()
+    _nail(bm_nail, m3 - d2 * 0.0072 + tn * 0.0086, d2, tn, 0.006, 0.0125)
     ob = obj_from_bm(sc, name + "_da", bm, skin_mat)
     # hoà thành một khối mềm
     rm = ob.modifiers.new("remesh", 'REMESH'); rm.mode = 'VOXEL'; rm.voxel_size = voxel; rm.adaptivity = 0.0
@@ -268,12 +324,14 @@ def build_hand(sc, name, pose, skin_mat, sleeve_mat, voxel=0.0022):
     bake(ob)
     if len(ob.data.materials) == 0:
         ob.data.materials.append(skin_mat)
+    _skin_tint(ob, tips, knuckles)
+    nails = obj_from_bm(sc, name + "_mong", bm_nail, nail_mat or mat("Mong", (0.72, 0.5, 0.45), 0.3))
     # tay áo
     bm2 = bmesh.new()
     loft(bm2, [(Vector((0, -0.29, 0.004)), 0.05, 0.043), (Vector((0, -0.31, 0.004)), 0.053, 0.046),
                (Vector((0, -0.42, 0.004)), 0.056, 0.048), (Vector((0, -0.56, 0.004)), 0.058, 0.05)], seg=18)
     sl = obj_from_bm(sc, name + "_ao", bm2, sleeve_mat)
-    return ob, sl
+    return ob, sl, nails
 
 
 # ---------------------------------------------------------------- đồ cầm tay (trục dài theo +Z, gốc ở tâm chỗ cầm)

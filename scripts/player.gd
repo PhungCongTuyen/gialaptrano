@@ -79,6 +79,7 @@ func _make_arm(side: float, watch: bool) -> Node3D:
 		mi.mesh = _pose_meshes["tha_long"]
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mir.add_child(mi)
+		_apply_hand_mats(mi)
 	else:
 		_box_arm(mir, side)
 	var grip: Node3D = Node3D.new()
@@ -163,6 +164,68 @@ func _set_pose(arm: Node3D, pose: String) -> void:
 	var hand: MeshInstance3D = arm.get_node_or_null("mirror/hand") as MeshInstance3D
 	if hand != null and _pose_meshes.has(pose) and hand.mesh != _pose_meshes[pose]:
 		hand.mesh = _pose_meshes[pose]
+		_apply_hand_mats(hand)
+
+
+# ---- chất liệu da / vải / móng cho tay (thay vật liệu trơn trong file glb)
+var _mat_skin: StandardMaterial3D
+var _mat_cloth: StandardMaterial3D
+var _mat_nail: StandardMaterial3D
+
+
+func _hand_mats() -> void:
+	if _mat_skin != null:
+		return
+	_mat_skin = StandardMaterial3D.new()
+	_mat_skin.albedo_color = Color(0.8, 0.62, 0.53)
+	_mat_skin.vertex_color_use_as_albedo = true      # đầu ngón, khớp hồng hơn; lòng bàn tay sáng; cẳng tay rám
+	_mat_skin.roughness = 0.62
+	_mat_skin.specular = 0.35
+	_mat_skin.rim_enabled = true                      # viền sáng mềm như da thật
+	_mat_skin.rim = 0.15
+	_mat_skin.rim_tint = 0.4
+	_mat_skin.subsurf_scatter_enabled = true          # ánh sáng xuyên da (Forward+)
+	_mat_skin.subsurf_scatter_strength = 0.3
+	_mat_skin.subsurf_scatter_skin_mode = true
+	_mat_cloth = StandardMaterial3D.new()
+	_mat_cloth.albedo_color = Color(0.17, 0.22, 0.34)
+	_mat_cloth.roughness = 0.95
+	_mat_cloth.specular = 0.15
+	_mat_nail = StandardMaterial3D.new()
+	_mat_nail.albedo_color = Color(0.86, 0.66, 0.62)
+	_mat_nail.roughness = 0.3
+	_mat_nail.vertex_color_use_as_albedo = false
+	for spec in [[_mat_skin, "da_chi_tiet", "da_normal", "da_nham", 0.05], [_mat_cloth, "vai_chi_tiet", "vai_normal", "", 0.12]]:
+		var m: StandardMaterial3D = spec[0]
+		var a: String = "res://textures/tay/%s.png" % spec[1]
+		if ResourceLoader.exists(a):
+			m.albedo_texture = load(a)
+		var n: String = "res://textures/tay/%s.png" % spec[2]
+		if ResourceLoader.exists(n):
+			m.normal_enabled = true
+			m.normal_texture = load(n)
+			m.normal_scale = 0.7
+		if str(spec[3]) != "" and ResourceLoader.exists("res://textures/tay/%s.png" % spec[3]):
+			m.roughness_texture = load("res://textures/tay/%s.png" % spec[3])
+			m.roughness = 1.0
+		# chiếu theo toạ độ của chính bàn tay: lặp mỗi vài cm, không cần UV
+		m.uv1_triplanar = true
+		m.uv1_world_triplanar = false
+		m.uv1_scale = Vector3.ONE / float(spec[4])
+		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+
+
+func _apply_hand_mats(hand: MeshInstance3D) -> void:
+	_hand_mats()
+	for i in hand.mesh.get_surface_count():
+		var sm: Material = hand.mesh.surface_get_material(i)
+		var nm: String = sm.resource_name.to_lower() if sm != null else ""
+		if nm.begins_with("da"):
+			hand.set_surface_override_material(i, _mat_skin)
+		elif nm.begins_with("ao"):
+			hand.set_surface_override_material(i, _mat_cloth)
+		elif nm.begins_with("mong"):
+			hand.set_surface_override_material(i, _mat_nail)
 
 
 func _box_arm(parent: Node3D, side: float) -> void:
