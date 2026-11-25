@@ -746,6 +746,9 @@ func _vp_fix(n: Node, o: Dictionary = {}) -> void:
 					r = _vp_tex_mat("mat_dong_ho", false)
 				"TranThach":
 					r = _vp_tex_mat("tran", false)
+					(r as StandardMaterial3D).albedo_color = Color(0.86, 0.86, 0.85)
+				"TuongSon":
+					r = _vp_tint(m, Color(0.6, 0.58, 0.54))
 				"Ao", "Quan", "Da":
 					var key: String = {"Ao": "ao", "Quan": "quan", "Da": "da"}[m.resource_name]
 					if o.has(key):
@@ -846,6 +849,14 @@ func _build_office() -> void:
 	_vp_col(root, Vector3(0.3, 4, OFFICE_SIZE.z + 1), Vector3(hw + 0.15, 2, 0))
 	_vp_col(root, Vector3(OFFICE_SIZE.x + 1, 0.2, OFFICE_SIZE.z + 1), Vector3(0, OFFICE_SIZE.y + 0.1, 0))
 	office_door = _vp(root, "cua_ra_vao", Vector3(-0.49, 0, hd - 0.02))
+	# tấm chắn nắng trên trần (chỉ đổ bóng): trần thạch cao là một mặt mỏng, không chắn được mặt trời
+	var roof: MeshInstance3D = MeshInstance3D.new()
+	var rb: BoxMesh = BoxMesh.new()
+	rb.size = Vector3(OFFICE_SIZE.x + 0.6, 0.3, OFFICE_SIZE.z + 0.6)
+	roof.mesh = rb
+	roof.position = Vector3(0, OFFICE_SIZE.y + 0.2, 0)
+	roof.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+	root.add_child(roof)
 	# đèn trần (đèn LED âm trần là vật liệu tự sáng; ánh sáng thật dùng vài đèn điểm)
 	for lx in [-3.6, 0.0, 3.6]:
 		for lz in [-2.4, 1.8]:

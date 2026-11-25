@@ -558,13 +558,13 @@ def _head(p, c, female=False, hair_style="ngan"):
     c = Vector(c)
     da = p.bm("Da", sub=1, ang=180)
     ell(da, c, (0.08, 0.095, 0.11), seg=20, rings=14)
-    ell(da, c + Vector((0, 0.022, -0.055)), (0.064, 0.068, 0.058), seg=16, rings=10)    # cằm, má
-    ell(da, c + Vector((0, 0.094, -0.005)), (0.014, 0.02, 0.026), seg=10, rings=6, rot=(0.25, 0, 0))  # mũi
+    ell(da, c + Vector((0, 0.016, -0.05)), (0.063, 0.066, 0.056), seg=16, rings=10)    # cằm, má
+    ell(da, c + Vector((0, 0.092, 0.0)), (0.011, 0.015, 0.02), seg=10, rings=6, rot=(0.3, 0, 0))  # mũi
     for sx in (-1, 1):
         ell(da, c + Vector((sx * 0.08, -0.005, -0.004)), (0.012, 0.022, 0.03), seg=10, rings=6)  # tai
         ell(p.bm("MatNguoi", ang=180), c + Vector((sx * 0.031, 0.083, 0.018)), (0.011, 0.007, 0.0075), seg=10, rings=6)
         box(p.bm("Toc", ang=60), c + Vector((sx * 0.032, 0.088, 0.04)), (0.03, 0.008, 0.006 if not female else 0.004), rot=(0, sx * -0.12, 0))
-    ell(p.bm("Moi", ang=180), c + Vector((0, 0.083, -0.048)), (0.02, 0.008, 0.0065), seg=10, rings=6)
+    ell(p.bm("Moi", ang=180), c + Vector((0, 0.08, -0.045)), (0.017, 0.007, 0.005), seg=10, rings=6)
     # tóc: vỏ cầu cắt theo chân tóc, làm dày bằng solidify
     dst = p.bm("Toc", sub=1, solid=0.012, ang=180)
     vs = ell(dst, (0, 0, 0), (1, 1, 1), seg=24, rings=16)
@@ -573,11 +573,11 @@ def _head(p, c, female=False, hair_style="ngan"):
         x, y, z = v.co
         # chân tóc: trán cao ở phía trước, phủ tai và gáy ở hai bên / phía sau
         if female:
-            front, side, back = 0.22, -0.62, -0.95
+            front, side, back = 0.42, -0.62, -0.95
         else:
             front, side, back = 0.36, -0.12, -0.55
         if y > 0.55:
-            lim = front - 0.25 * abs(x)   # tóc mái lệch hai bên
+            lim = front - 0.25 * abs(x) - (0.3 * x if female else 0.0)   # rẽ ngôi lệch
         elif y > -0.35:
             t = (y + 0.35) / 0.9
             lim = side + (front - side) * t * t
