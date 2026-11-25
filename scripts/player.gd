@@ -16,13 +16,20 @@ var target: Node = null
 var cam: Camera3D
 var ray: RayCast3D
 var pitch: float = 0.0
-var wrist: Node3D
+var wrist: Node3D      # tay trái (đeo đồng hồ)
+var arm_r: Node3D      # tay phải
 var watch_label: Label3D
 var watch_raised: bool = false
-const WRIST_DOWN: Vector3 = Vector3(-0.30, -0.30, -0.55)
+# Hai tay luôn ở mép dưới màn hình (kiểu CS2). Toạ độ theo camera.
+const ARM_IDLE_POS: Vector3 = Vector3(0.27, -0.25, -0.46)   # tay phải; tay trái lật dấu x
+const ARM_IDLE_ROT: Vector3 = Vector3(0.34, 0.24, -0.3)    # tay phải; tay trái lật dấu y, z
 const WRIST_UP: Vector3 = Vector3(-0.07, -0.13, -0.38)
-const WRIST_DOWN_ROT: Vector3 = Vector3(0.55, 0.35, 0.25)
 const WRIST_UP_ROT: Vector3 = Vector3(1.15, 0.05, 0.0)
+var _w_watch: float = 0.0   # 0..1: mức giơ tay xem đồng hồ
+var _w_dig: float = 0.0     # 0..1: mức cúi người bới
+var _bob_t: float = 0.0
+var _bob_amp: float = 0.0
+var _life_t: float = 0.0
 
 
 func _ready() -> void:
@@ -43,49 +50,56 @@ func _ready() -> void:
 	ray.target_position = Vector3(0, 0, -3.2)
 	cam.add_child(ray)
 	ray.add_exception(self)
-	_build_wrist()
-	_build_hands()
+	wrist = _make_arm(-1.0, true)
+	arm_r = _make_arm(1.0, false)
+	_update_arms(0.0)
 
 
-## Cánh tay trái đeo đồng hồ, gắn vào camera. Vẽ đè lên mọi thứ để không bị tường che.
-func _build_wrist() -> void:
-	wrist = Node3D.new()
-	wrist.position = WRIST_DOWN
-	wrist.rotation = WRIST_DOWN_ROT
-	cam.add_child(wrist)
-	var arm: MeshInstance3D = MeshInstance3D.new()
-	var am: BoxMesh = BoxMesh.new()
-	am.size = Vector3(0.09, 0.07, 0.45)
-	arm.mesh = am
-	arm.position = Vector3(0, 0, 0.2)
-	arm.material_override = _overlay_mat(Color(0.85, 0.65, 0.5))
-	wrist.add_child(arm)
-	var sleeve: MeshInstance3D = MeshInstance3D.new()
-	var sm: BoxMesh = BoxMesh.new()
-	sm.size = Vector3(0.11, 0.09, 0.2)
-	sleeve.mesh = sm
-	sleeve.position = Vector3(0, 0, 0.4)
-	sleeve.material_override = _overlay_mat(Color(0.25, 0.3, 0.45))
-	wrist.add_child(sleeve)
-	var body: MeshInstance3D = MeshInstance3D.new()
-	var bm: BoxMesh = BoxMesh.new()
-	bm.size = Vector3(0.1, 0.02, 0.085)
-	body.mesh = bm
-	body.position = Vector3(0, 0.043, 0.02)
-	body.material_override = _overlay_mat(Color(0.06, 0.06, 0.07))
-	wrist.add_child(body)
-	watch_label = Label3D.new()
-	watch_label.position = Vector3(0, 0.055, 0.02)
-	watch_label.rotation = Vector3(-PI / 2.0, 0, 0)
-	watch_label.pixel_size = 0.00028
-	watch_label.font_size = 64
-	watch_label.outline_size = 0
-	watch_label.modulate = Color(0.55, 1.0, 0.65)
-	watch_label.no_depth_test = true
-	watch_label.render_priority = 12
-	watch_label.double_sided = false
-	watch_label.text = "07:00"
-	wrist.add_child(watch_label)
+## Một cánh tay (cẳng tay, tay áo, bàn tay, ngón tay) gắn vào camera, vẽ đè lên mọi thứ để không bị tường che.
+## Tay trái có đồng hồ đeo ở cổ tay.
+func _make_arm(side: float, watch: bool) -> Node3D:
+	var arm: Node3D = Node3D.new()
+	cam.add_child(arm)
+	var skin: StandardMaterial3D = _overlay_mat(Color(0.85, 0.65, 0.5))
+	var shirt: StandardMaterial3D = _overlay_mat(Color(0.25, 0.3, 0.45))
+	var parts: Array = [
+		[Vector3(0.085, 0.07, 0.45), Vector3(0, 0, 0.2), skin, 0.0],          # cẳng tay
+		[Vector3(0.11, 0.09, 0.2), Vector3(0, 0, 0.42), shirt, 0.0],           # tay áo
+		[Vector3(0.09, 0.03, 0.1), Vector3(0, -0.006, -0.07), skin, 0.0],      # bàn tay
+		[Vector3(0.022, 0.022, 0.055), Vector3(0.05 * -side, -0.002, -0.07), skin, 0.0],  # ngón cái
+	]
+	for k in 4:  # ngón tay, hơi co
+		parts.append([Vector3(0.017, 0.018, 0.065), Vector3(-0.032 + float(k) * 0.021, -0.02, -0.14), skin, 0.45])
+	for pt in parts:
+		var mi: MeshInstance3D = MeshInstance3D.new()
+		var bm: BoxMesh = BoxMesh.new()
+		bm.size = pt[0]
+		mi.mesh = bm
+		mi.position = pt[1]
+		mi.rotation.x = pt[3]
+		mi.material_override = pt[2]
+		arm.add_child(mi)
+	if watch:
+		var body: MeshInstance3D = MeshInstance3D.new()
+		var wb: BoxMesh = BoxMesh.new()
+		wb.size = Vector3(0.1, 0.02, 0.085)
+		body.mesh = wb
+		body.position = Vector3(0, 0.043, 0.02)
+		body.material_override = _overlay_mat(Color(0.06, 0.06, 0.07))
+		arm.add_child(body)
+		watch_label = Label3D.new()
+		watch_label.position = Vector3(0, 0.055, 0.02)
+		watch_label.rotation = Vector3(-PI / 2.0, 0, 0)
+		watch_label.pixel_size = 0.00028
+		watch_label.font_size = 64
+		watch_label.outline_size = 0
+		watch_label.modulate = Color(0.55, 1.0, 0.65)
+		watch_label.no_depth_test = true
+		watch_label.render_priority = 12
+		watch_label.double_sided = false
+		watch_label.text = "07:00"
+		arm.add_child(watch_label)
+	return arm
 
 
 func _overlay_mat(c: Color) -> StandardMaterial3D:
@@ -103,12 +117,7 @@ func set_watch(text: String) -> void:
 
 
 func raise_watch(up: bool) -> void:
-	if watch_raised == up:
-		return
 	watch_raised = up
-	var tw: Tween = create_tween().set_parallel(true)
-	tw.tween_property(wrist, "position", WRIST_UP if up else WRIST_DOWN, 0.2)
-	tw.tween_property(wrist, "rotation", WRIST_UP_ROT if up else WRIST_DOWN_ROT, 0.2)
 
 
 func set_pitch(p: float) -> void:
@@ -165,8 +174,9 @@ func _physics_process(delta: float) -> void:
 	if crouching:
 		cam_h = 0.15
 	elif dig_time >= 0.0:
-		cam_h = 0.2  # ngồi xổm bới
+		cam_h = 0.25  # cúi người xuống bới
 	cam.position.y = lerpf(cam.position.y, cam_h, minf(1.0, delta * 8.0))
+	cam.position.z = lerpf(cam.position.z, -0.28 if dig_time >= 0.0 else 0.0, minf(1.0, delta * 8.0))  # chồm về phía trước
 	var d: Vector3 = (transform.basis * Vector3(dir_in.x, 0.0, dir_in.y)).normalized()
 	var spd: float = SPRINT if sprint else SPEED
 	if crouching:
@@ -178,6 +188,9 @@ func _physics_process(delta: float) -> void:
 	elif jump:
 		velocity.y = JUMP
 	move_and_slide()
+	var hs: float = Vector2(velocity.x, velocity.z).length()
+	_bob_amp = lerpf(_bob_amp, clampf(hs / SPEED, 0.0, 1.6) if is_on_floor() else 0.0, minf(1.0, delta * 8.0))
+	_bob_t += delta * (6.0 + hs * 1.2)
 
 	target = null
 	if not locked and ray.is_colliding():
@@ -186,73 +199,55 @@ func _physics_process(delta: float) -> void:
 			target = c as Node
 
 
-# ---------------------------------------------------------------- hai tay bới đụn rác / lá
+# ---------------------------------------------------------------- tư thế hai tay: đứng / đi / xem đồng hồ / bới
 
-var hands: Node3D
-var _hand_arms: Array = []
 var dig_time: float = -1.0
 var dig_len: float = 5.0
 
 
-func _build_hands() -> void:
-	hands = Node3D.new()
-	hands.visible = false
-	cam.add_child(hands)
-	var skin: StandardMaterial3D = _overlay_mat(Color(0.85, 0.65, 0.5))
-	var shirt: StandardMaterial3D = _overlay_mat(Color(0.25, 0.3, 0.45))
-	for side in [-1.0, 1.0]:
-		var arm: Node3D = Node3D.new()
-		hands.add_child(arm)
-		_hand_arms.append([arm, side])
-		var parts: Array = [
-			[Vector3(0.07, 0.062, 0.3), Vector3(0, 0, 0.15), skin],         # cẳng tay
-			[Vector3(0.078, 0.07, 0.1), Vector3(0, 0.002, 0.33), shirt],   # tay áo
-			[Vector3(0.085, 0.028, 0.095), Vector3(0, -0.004, -0.04), skin], # bàn tay
-		]
-		for k in 4:  # ngón tay
-			parts.append([Vector3(0.016, 0.017, 0.062), Vector3(-0.03 + float(k) * 0.02, -0.012, -0.112), skin])
-		parts.append([Vector3(0.019, 0.019, 0.05), Vector3(0.048 * -side, -0.004, -0.06), skin])  # ngón cái
-		for pt in parts:
-			var mi: MeshInstance3D = MeshInstance3D.new()
-			var bm: BoxMesh = BoxMesh.new()
-			bm.size = pt[0]
-			mi.mesh = bm
-			mi.position = pt[1]
-			mi.material_override = pt[2]
-			if (pt[0] as Vector3).z < 0.08 and (pt[1] as Vector3).z < -0.1:
-				mi.rotation.x = 0.5  # ngón co lại như đang cào
-			arm.add_child(mi)
-
-
-## Bắt đầu hoạt ảnh hai tay đào bới trong `seconds` giây.
+## Bắt đầu động tác bới trong `seconds` giây (người cúi xuống, hai tay cào bới).
 func play_dig(seconds: float) -> void:
 	dig_len = seconds
 	dig_time = 0.0
-	hands.visible = true
-	wrist.visible = false
-	_update_hands()
+	watch_raised = false
 
 
 func stop_dig() -> void:
 	dig_time = -1.0
-	hands.visible = false
-	wrist.visible = true
 
 
 func _process(delta: float) -> void:
+	_life_t += delta
 	if dig_time >= 0.0:
 		dig_time += delta
-		_update_hands()
+	_update_arms(delta)
 
 
-func _update_hands() -> void:
-	var t: float = dig_time
-	var enter: float = clampf(t / 0.3, 0.0, 1.0) * clampf((dig_len - t) / 0.3, 0.0, 1.0)  # thò tay vào / rút ra
-	for e in _hand_arms:
+func _update_arms(delta: float) -> void:
+	var k: float = minf(1.0, delta * 10.0) if delta > 0.0 else 1.0
+	_w_watch = lerpf(_w_watch, 1.0 if watch_raised else 0.0, k)
+	_w_dig = lerpf(_w_dig, 1.0 if dig_time >= 0.0 else 0.0, minf(1.0, delta * 7.0) if delta > 0.0 else 1.0)
+	var breathe: float = sin(_life_t * 1.6) * 0.004
+	for e in [[wrist, -1.0], [arm_r, 1.0]]:
 		var arm: Node3D = e[0]
 		var side: float = e[1]
-		var ph: float = t * TAU * 1.7 + (0.0 if side < 0.0 else PI)
-		var sc: float = sin(ph)
-		var dn: float = maxf(0.0, sc)
-		arm.position = Vector3(0.13 * side - 0.03 * side * sc, -0.2 - 0.07 * dn - 0.3 * (1.0 - enter), -0.62 - 0.1 * sc)
-		arm.rotation = Vector3(-0.7 - 0.45 * dn + 0.2 * maxf(0.0, -sc), 0.22 * side, 0.3 * side * cos(ph))
+		# đứng yên / đi: ở góc dưới màn hình, nhún theo bước chân
+		var bob: Vector3 = Vector3(sin(_bob_t) * 0.012 * side, -absf(cos(_bob_t)) * 0.016, 0.0) * _bob_amp
+		var pos: Vector3 = Vector3(ARM_IDLE_POS.x * side, ARM_IDLE_POS.y + breathe, ARM_IDLE_POS.z) + bob
+		var rot: Vector3 = Vector3(ARM_IDLE_ROT.x, ARM_IDLE_ROT.y * side, ARM_IDLE_ROT.z * side)
+		# bới: hai bàn tay thay nhau cào xuống đụn
+		if _w_dig > 0.001:
+			var t: float = maxf(dig_time, 0.0)
+			var ph: float = t * TAU * 1.7 + (0.0 if side < 0.0 else PI)
+			var sc: float = sin(ph)
+			var dn: float = maxf(0.0, sc)
+			var dpos: Vector3 = Vector3(0.14 * side - 0.035 * side * sc, -0.25 - 0.06 * dn + 0.03 * maxf(0.0, -sc), -0.64 - 0.13 * sc)
+			var drot: Vector3 = Vector3(0.12 + 0.35 * dn - 0.12 * maxf(0.0, -sc), 0.32 * side, 0.25 * side * cos(ph))
+			pos = pos.lerp(dpos, _w_dig)
+			rot = rot.lerp(drot, _w_dig)
+		# tay trái giơ lên xem đồng hồ
+		if side < 0.0 and _w_watch > 0.001:
+			pos = pos.lerp(WRIST_UP, _w_watch)
+			rot = rot.lerp(WRIST_UP_ROT, _w_watch)
+		arm.position = pos
+		arm.rotation = rot
