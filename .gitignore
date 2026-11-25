@@ -6,3 +6,4 @@
 *.tmp
 *.blend1
 *.blend.import
+.py_tools/

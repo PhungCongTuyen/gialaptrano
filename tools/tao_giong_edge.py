@@ -71,6 +71,10 @@ async def tao(ten, nguoi_noi, cau):
 
 
 async def main():
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")  # cửa sổ lệnh Windows
+    except Exception:
+        pass
     lam_lai = "--lam-lai" in sys.argv
     chi = []
     if "--thu" in sys.argv:
