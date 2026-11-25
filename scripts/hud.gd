@@ -38,7 +38,8 @@ var objective_label: Label
 var panel: PanelContainer
 var title_label: Label
 var body_label: Label
-var options_box: VBoxContainer
+var options_box: HBoxContainer
+var bottom_box: VBoxContainer
 var skip_label: Label
 var fade_rect: ColorRect
 var day_card: Label
@@ -170,6 +171,7 @@ func _build() -> void:
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_theme_stylebox_override("panel", StyleBoxEmpty.new())   # không nền: không che cảnh game
 	bottom.add_child(panel)
+	bottom_box = bottom
 
 	var mc: MarginContainer = MarginContainer.new()
 	for side in ["left", "top", "right", "bottom"]:
@@ -183,17 +185,17 @@ func _build() -> void:
 	vb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	mc.add_child(vb)
 
-	# lựa chọn nằm trên phụ đề
-	options_box = VBoxContainer.new()
-	options_box.add_theme_constant_override("separation", 2)
-	options_box.alignment = BoxContainer.ALIGNMENT_CENTER
-	vb.add_child(options_box)
-
 	title_label = _sub_label(21, Color(1, 0.84, 0.35))
 	vb.add_child(title_label)
 
 	body_label = _sub_label(25, Color(1, 1, 1))
 	vb.add_child(body_label)
+
+	# lựa chọn: một hàng ngang dưới câu thoại, chọn bằng chuột
+	options_box = HBoxContainer.new()
+	options_box.add_theme_constant_override("separation", 28)
+	options_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	vb.add_child(options_box)
 
 	# gợi ý bỏ qua ở góc dưới phải màn hình
 	skip_label = _make_label(17)
@@ -699,9 +701,20 @@ func _option_button(text: String) -> Button:
 	b.add_theme_color_override("font_disabled_color", Color(0.7, 0.7, 0.7, 0.55))
 	b.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.95))
 	b.add_theme_constant_override("outline_size", 6)
-	var e: StyleBoxEmpty = StyleBoxEmpty.new()
+	# không viền: chỉ một lớp sáng mờ khi rê chuột
 	for st in ["normal", "hover", "pressed", "disabled", "focus"]:
-		b.add_theme_stylebox_override(st, e)
+		var sb: StyleBoxFlat = StyleBoxFlat.new()
+		sb.bg_color = Color(1, 1, 1, 0.0)
+		if st == "hover" or st == "focus":
+			sb.bg_color = Color(1, 1, 1, 0.10)
+		elif st == "pressed":
+			sb.bg_color = Color(1, 1, 1, 0.18)
+		sb.set_corner_radius_all(3)
+		sb.content_margin_left = 26
+		sb.content_margin_right = 26
+		sb.content_margin_top = 8
+		sb.content_margin_bottom = 8
+		b.add_theme_stylebox_override(st, sb)
 	b.mouse_entered.connect(func(): if not b.disabled: b.grab_focus())
 	return b
 
@@ -744,6 +757,7 @@ func show_menu(title: String, body: String, options: Array, voice_text: String =
 			b.pressed.connect(_choose.bind(cb))
 			options_box.add_child(b)
 			i += 1
+	_set_band(not sub_mode)
 	panel.visible = true
 	menu_open = true
 	hotbar_box.visible = false
@@ -775,6 +789,23 @@ var sub_mode: bool = false
 var sub_next: Callable = Callable()
 var sub_hold: float = -1.0
 var sub_voiced: bool = false
+
+
+## Câu có lựa chọn: dải nền đen mờ chạy hết chiều ngang màn hình.
+## Phụ đề thường: không nền, căn giữa.
+func _set_band(on: bool) -> void:
+	if on:
+		var sb: StyleBoxFlat = StyleBoxFlat.new()
+		sb.bg_color = Color(0, 0, 0, 0.58)
+		sb.content_margin_top = 10
+		sb.content_margin_bottom = 8
+		panel.add_theme_stylebox_override("panel", sb)
+		panel.size_flags_horizontal = Control.SIZE_FILL
+		bottom_box.offset_bottom = 0
+	else:
+		panel.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+		panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		bottom_box.offset_bottom = -18
 
 
 ## Chuyển sang câu tiếp (phụ đề).
