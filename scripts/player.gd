@@ -24,8 +24,12 @@ var watch_raised: bool = false
 # Hai tay luôn ở mép dưới màn hình (kiểu CS2). Toạ độ theo camera.
 const ARM_IDLE_POS: Vector3 = Vector3(0.27, -0.25, -0.46)   # tay phải; tay trái lật dấu x
 const ARM_IDLE_ROT: Vector3 = Vector3(0.34, 0.24, -0.3)    # tay phải; tay trái lật dấu y, z
-const WRIST_UP: Vector3 = Vector3(-0.07, -0.13, -0.38)
-const WRIST_UP_ROT: Vector3 = Vector3(1.15, 0.05, 0.0)
+# Xem đồng hồ (kiểu Green Hell): cẳng tay trái nằm ngang từ mép trái, nắm tay, mặt đồng hồ quay về camera
+const WRIST_UP: Vector3 = Vector3(-0.035, -0.165, -0.36)
+var WRIST_UP_ROT: Vector3 = (Basis(Vector3.UP, -PI / 2.0) * Basis(Vector3.BACK, deg_to_rad(-74.0)) * Basis(Vector3.RIGHT, 0.12)).get_euler()
+# Cầm giấy hai tay: bàn tay dựng đứng hai mép, lòng bàn tay hướng vào giấy, ngón cái ở mặt trước
+var DOC_ROT_R: Vector3 = (Basis(Vector3(0, 0, -1), Vector3(1, 0, 0), Vector3(0, -1, 0)) * Basis(Vector3.RIGHT, -0.12)).get_euler()
+var DOC_ROT_L: Vector3 = (Basis(Vector3(0, 0, 1), Vector3(-1, 0, 0), Vector3(0, -1, 0)) * Basis(Vector3.RIGHT, -0.12)).get_euler()
 var _w_watch: float = 0.0   # 0..1: mức giơ tay xem đồng hồ
 var _w_dig: float = 0.0     # 0..1: mức cúi người bới
 var _bob_t: float = 0.0
@@ -82,32 +86,53 @@ func _make_arm(side: float, watch: bool) -> Node3D:
 	grip.position = GRIP_POS
 	mir.add_child(grip)
 	if watch:
-		var body: MeshInstance3D = MeshInstance3D.new()
-		var wb: BoxMesh = BoxMesh.new()
-		wb.size = Vector3(0.05, 0.012, 0.042)
-		body.mesh = wb
-		body.position = Vector3(0, 0.024, 0.035)
-		body.material_override = _overlay_mat(Color(0.06, 0.06, 0.07))
-		arm.add_child(body)
+		# mặt đồng hồ tròn trên cổ tay (kiểu Green Hell), dây đeo quấn quanh cổ tay
 		var strap: MeshInstance3D = MeshInstance3D.new()
 		var sb: BoxMesh = BoxMesh.new()
-		sb.size = Vector3(0.064, 0.044, 0.02)
+		sb.size = Vector3(0.066, 0.046, 0.022)
 		strap.mesh = sb
-		strap.position = Vector3(0, 0.0, 0.035)
+		strap.position = Vector3(0, 0.0, 0.04)
 		var smat: StandardMaterial3D = StandardMaterial3D.new()
-		smat.albedo_color = Color(0.08, 0.08, 0.09)
+		smat.albedo_color = Color(0.1, 0.09, 0.08)
+		smat.roughness = 0.8
 		strap.material_override = smat
 		arm.add_child(strap)
+		var case_mi: MeshInstance3D = MeshInstance3D.new()
+		var cm: CylinderMesh = CylinderMesh.new()
+		cm.top_radius = 0.026
+		cm.bottom_radius = 0.027
+		cm.height = 0.012
+		cm.radial_segments = 28
+		case_mi.mesh = cm
+		case_mi.position = Vector3(0, 0.026, 0.04)
+		var cmat: StandardMaterial3D = StandardMaterial3D.new()
+		cmat.albedo_color = Color(0.55, 0.22, 0.08)  # vỏ cam đậm
+		cmat.roughness = 0.5
+		case_mi.material_override = cmat
+		arm.add_child(case_mi)
+		var face_mi: MeshInstance3D = MeshInstance3D.new()
+		var fm: CylinderMesh = CylinderMesh.new()
+		fm.top_radius = 0.021
+		fm.bottom_radius = 0.021
+		fm.height = 0.002
+		fm.radial_segments = 28
+		face_mi.mesh = fm
+		face_mi.position = Vector3(0, 0.0325, 0.04)
+		var fmat: StandardMaterial3D = StandardMaterial3D.new()
+		fmat.albedo_color = Color(0.05, 0.06, 0.08)
+		fmat.roughness = 0.15
+		face_mi.material_override = fmat
+		arm.add_child(face_mi)
 		watch_label = Label3D.new()
-		watch_label.position = Vector3(0, 0.031, 0.035)
-		watch_label.rotation = Vector3(-PI / 2.0, 0, 0)
-		watch_label.pixel_size = 0.00011
+		watch_label.position = Vector3(0, 0.0345, 0.04)
+		# nằm trên mặt đồng hồ; chữ đứng thẳng khi giơ tay xem (đầu chữ hướng về phía khuỷu... xoay 90°)
+		watch_label.rotation = Vector3(-PI / 2.0, PI / 2.0, 0)
+		watch_label.pixel_size = 0.000125
 		watch_label.font_size = 64
 		watch_label.outline_size = 0
 		watch_label.modulate = Color(0.55, 1.0, 0.65)
-		watch_label.no_depth_test = true
-		watch_label.render_priority = 12
 		watch_label.double_sided = false
+		watch_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		watch_label.text = "07:00"
 		arm.add_child(watch_label)
 	return arm
@@ -410,8 +435,8 @@ func hold_document(kind: String) -> void:
 	doc_node.rotation = DOC_ROT
 
 
-const DOC_POS: Vector3 = Vector3(0.0, -0.13, -0.42)
-const DOC_ROT: Vector3 = Vector3(-0.55, 0.0, 0.0)
+const DOC_POS: Vector3 = Vector3(0.0, -0.015, -0.43)
+const DOC_ROT: Vector3 = Vector3(-0.12, 0.0, 0.0)
 const HOLD_POS: Vector3 = Vector3(0.2, -0.2, -0.42)      # tay phải cầm đồ
 const HOLD_ROT: Vector3 = Vector3(0.25, 0.3, -1.35)
 const MOUTH_POS: Vector3 = Vector3(0.05, -0.12, -0.2)    # đưa lên miệng
@@ -453,6 +478,8 @@ func _update_arms(delta: float) -> void:
 		pose_l = "kep"
 	elif held_id != "":
 		pose_r = str(HOLD_MODELS.get(held_id, ["", 1.0, "kep"])[2])
+	if watch_raised and dig_time < 0.0 and doc_kind == "":
+		pose_l = "nam"
 	_set_pose(arm_r, pose_r)
 	_set_pose(wrist, pose_l)
 	var breathe: float = sin(_life_t * 1.6) * 0.004
@@ -473,10 +500,10 @@ func _update_arms(delta: float) -> void:
 				rot = rot.lerp(mrot, _w_use)
 		# hai tay cầm giấy tờ ở hai mép dưới
 		if _w_doc > 0.001:
-			var dp: Vector3 = DOC_POS + Vector3(0.1 * side, -0.115, 0.075)
-			var dr: Vector3 = Vector3(0.75, -0.35 * side, -1.1 * side)
+			var dp: Vector3 = DOC_POS + Vector3(0.138 * side, -0.165, -0.014)
+			var dr: Vector3 = DOC_ROT_R if side > 0.0 else DOC_ROT_L
 			pos = pos.lerp(dp + Vector3(0, breathe, 0), _w_doc)
-			rot = rot.lerp(dr, _w_doc)
+			rot = Quaternion.from_euler(rot).slerp(Quaternion.from_euler(dr), _w_doc).get_euler()
 		# bới: hai bàn tay thay nhau cào xuống đụn
 		if _w_dig > 0.001:
 			var t: float = maxf(dig_time, 0.0)
@@ -490,7 +517,7 @@ func _update_arms(delta: float) -> void:
 		# tay trái giơ lên xem đồng hồ
 		if side < 0.0 and _w_watch > 0.001:
 			pos = pos.lerp(WRIST_UP, _w_watch)
-			rot = rot.lerp(WRIST_UP_ROT, _w_watch)
+			rot = Quaternion.from_euler(rot).slerp(Quaternion.from_euler(WRIST_UP_ROT), _w_watch).get_euler()
 		arm.position = pos
 		arm.rotation = rot
 	if doc_node != null:
