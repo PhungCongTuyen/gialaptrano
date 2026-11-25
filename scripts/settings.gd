@@ -76,7 +76,7 @@ func tts_volume() -> int:
 # ---------------------------------------------------------------- chữ giao diện hai ngôn ngữ
 
 const TEXT: Dictionary = {
-	"subtitle": ["Bị AI cướp việc. Nợ 100 triệu. 60 ngày để trả.", "Replaced by AI. 100 million in debt. 60 days to pay."],
+	"subtitle": ["Sau 60 ngày, cuộc sống sẽ ra sao là do bạn.", "After 60 days, what your life becomes is up to you."],
 	"start": ["Bắt đầu", "New game"],
 	"continue": ["Tiếp tục", "Continue"],
 	"options": ["Tùy chọn", "Options"],
