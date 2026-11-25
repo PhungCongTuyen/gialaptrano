@@ -154,12 +154,35 @@ func text3d(parent: Node3D, txt: String, pos: Vector3, size: float, col: Color, 
 
 # ====================================================================== nền phố
 
+const SIDEWALK_ALBEDO: String = "res://textures/via_he/via_he_albedo.jpg"
+const SIDEWALK_NORMAL: String = "res://textures/via_he/via_he_normal.png"
+const SIDEWALK_ROUGH: String = "res://textures/via_he/via_he_rough.png"
+const SIDEWALK_REPEAT_M: float = 2.4  # 8 viên x 30 cm
+
+
 func build_ground(size: Vector3, roads: Array) -> void:
 	var tile: StandardMaterial3D = StandardMaterial3D.new()
-	tile.albedo_texture = tile_tex
-	tile.uv1_scale = Vector3(size.x / 1.2, size.z / 1.2, 1)
-	tile.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
-	tile.roughness = 0.95
+	if ResourceLoader.exists(SIDEWALK_ALBEDO):
+		# gạch bát giác + ô vuông kiểu vỉa hè Hà Nội (textures/via_he, tạo bằng tools/tao_gach_via_he.py)
+		tile.albedo_texture = load(SIDEWALK_ALBEDO)
+		tile.albedo_color = Color(0.84, 0.84, 0.84)  # giảm chói dưới nắng
+		if ResourceLoader.exists(SIDEWALK_NORMAL):
+			tile.normal_enabled = true
+			tile.normal_texture = load(SIDEWALK_NORMAL)
+			tile.normal_scale = 1.0
+		if ResourceLoader.exists(SIDEWALK_ROUGH):
+			tile.roughness_texture = load(SIDEWALK_ROUGH)
+			tile.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+		tile.roughness = 1.0
+		tile.uv1_triplanar = true
+		tile.uv1_world_triplanar = true
+		tile.uv1_scale = Vector3.ONE / SIDEWALK_REPEAT_M
+		tile.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	else:
+		tile.albedo_texture = tile_tex
+		tile.uv1_scale = Vector3(size.x / 1.2, size.z / 1.2, 1)
+		tile.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
+		tile.roughness = 0.95
 	# mặt đất (vỉa hè lát gạch)
 	solid(self, Vector3(size.x, 1.0, size.z), Vector3(0, -0.5, 0), tile)
 	# mặt đường nhựa + mép vỉa hè
