@@ -449,11 +449,13 @@ func build_motorbike(pos: Vector3, yaw: float) -> void:
 	r.add_child(b)
 
 
-const STOOL_MODELS: Array = ["res://models/ban_ghe/ghe_nhua_do.glb", "res://models/ban_ghe/ghe_nhua_xanh.glb", "res://models/ban_ghe/ghe_nhua_xanh_la.glb"]
-const TABLE_MODEL: String = "res://models/ban_ghe/ban_nhua.glb"
+const STOOL_MODELS: Array = ["res://models/ban_ghe/ghe_nhua_xanh_reu.glb", "res://models/ban_ghe/ghe_nhua_vang.glb", "res://models/ban_ghe/ghe_nhua_do.glb", "res://models/ban_ghe/ghe_nhua_xanh.glb"]
+const TABLE_MODELS: Array = ["res://models/ban_ghe/ban_nhua_xanh_reu.glb", "res://models/ban_ghe/ban_nhua_do.glb"]
+var _shape_cache: Dictionary = {}
 
 
-func _place_model(parent: Node3D, path: String, pos: Vector3, yaw: float) -> bool:
+## Đặt model .glb; collide = true thì thêm khối va chạm bao lồi (convex) đúng theo hình model.
+func _place_model(parent: Node3D, path: String, pos: Vector3, yaw: float, collide: bool = true) -> bool:
 	if not ResourceLoader.exists(path):
 		return false
 	var ps: PackedScene = load(path)
@@ -463,11 +465,36 @@ func _place_model(parent: Node3D, path: String, pos: Vector3, yaw: float) -> boo
 	n.position = pos
 	n.rotation = Vector3(0, yaw, 0)
 	parent.add_child(n)
+	if collide:
+		add_model_collision(n, path)
 	return true
 
 
+## Thêm StaticBody3D + CollisionShape3D bao lồi cho model (dùng chung shape cho cùng một file).
+func add_model_collision(n: Node3D, key: String) -> void:
+	var mis: Array = n.find_children("*", "MeshInstance3D", true, false)
+	if mis.is_empty():
+		return
+	var mi: MeshInstance3D = mis[0]
+	if not _shape_cache.has(key):
+		_shape_cache[key] = mi.mesh.create_convex_shape(true, true)
+	var body: StaticBody3D = StaticBody3D.new()
+	body.set_meta("model", key.get_file().get_basename())
+	var cs: CollisionShape3D = CollisionShape3D.new()
+	cs.shape = _shape_cache[key]
+	var t: Transform3D = Transform3D()
+	var cur: Node = mi
+	while cur != null and cur != n:
+		if cur is Node3D:
+			t = (cur as Node3D).transform * t
+		cur = cur.get_parent()
+	cs.transform = t
+	body.add_child(cs)
+	n.add_child(body)
+
+
 func build_stools(center: Vector3, yaw: float) -> void:
-	# Bộ bàn ghế nhựa vỉa hè: dùng model Blender (models/ban_ghe), thiếu file thì dựng khối đơn giản.
+	# Bộ bàn ghế nhựa vỉa hè (models/ban_ghe, dựng bằng Blender); thiếu file thì dựng khối đơn giản.
 	var r: Node3D = Node3D.new()
 	r.position = center
 	r.rotation = Vector3(0, yaw, 0)
@@ -475,19 +502,24 @@ func build_stools(center: Vector3, yaw: float) -> void:
 	var cols: Array = [Color(0.85, 0.15, 0.15), Color(0.15, 0.35, 0.8), Color(0.95, 0.75, 0.1)]
 	for t in 2:
 		var tx: float = -1.2 + float(t) * 2.4
-		if not _place_model(r, TABLE_MODEL, Vector3(tx, 0, 0), rng.randf_range(-0.15, 0.15)):
+		var tyaw: float = rng.randf_range(-0.12, 0.12)
+		if not _place_model(r, TABLE_MODELS[rng.randi_range(0, TABLE_MODELS.size() - 1)], Vector3(tx, 0, 0), tyaw):
 			var tc: Color = cols[rng.randi_range(0, 2)]
-			deco(r, Vector3(0.7, 0.04, 0.7), Vector3(tx, 0.5, 0), mat(tc, 0.5))
+			solid(r, Vector3(0.7, 0.04, 0.7), Vector3(tx, 0.5, 0), mat(tc, 0.5))
 			for lx in [-0.3, 0.3]:
 				for lz in [-0.3, 0.3]:
 					deco(r, Vector3(0.04, 0.5, 0.04), Vector3(tx + lx, 0.25, lz), mat(tc, 0.5))
-		for s in 4:
-			var ang: float = float(s) * PI / 2.0 + 0.3 + rng.randf_range(-0.25, 0.25)
-			var dist: float = rng.randf_range(0.5, 0.62)
-			var sp: Vector3 = Vector3(tx + cos(ang) * dist, 0, sin(ang) * dist)
-			if not _place_model(r, STOOL_MODELS[rng.randi_range(0, 2)], sp, rng.randf_range(0.0, TAU)):
+		# bàn dài 0,7 m theo trục x: mỗi bên dài 2 ghế, thỉnh thoảng 1 ghế ở đầu bàn
+		var seats: Array = [Vector3(-0.2, 0, -0.55), Vector3(0.2, 0, -0.55), Vector3(-0.2, 0, 0.55), Vector3(0.2, 0, 0.55)]
+		if rng.randf() < 0.5:
+			seats.append(Vector3(0.72 if rng.randf() < 0.5 else -0.72, 0, 0))
+		for sp0 in seats:
+			if rng.randf() < 0.15:
+				continue  # ghế bị kéo đi chỗ khác
+			var sp: Vector3 = Vector3(tx, 0, 0) + sp0.rotated(Vector3.UP, tyaw) + Vector3(rng.randf_range(-0.08, 0.08), 0, rng.randf_range(-0.08, 0.08))
+			if not _place_model(r, STOOL_MODELS[rng.randi_range(0, STOOL_MODELS.size() - 1)], sp, rng.randf_range(-0.35, 0.35)):
 				var sc: Color = cols[rng.randi_range(0, 2)]
-				deco(r, Vector3(0.32, 0.04, 0.32), sp + Vector3(0, 0.3, 0), mat(sc, 0.5))
+				solid(r, Vector3(0.32, 0.04, 0.32), sp + Vector3(0, 0.3, 0), mat(sc, 0.5))
 				cyl(r, 0.14, 0.17, 0.28, sp + Vector3(0, 0.14, 0), mat(sc, 0.5))
 
 
@@ -795,11 +827,13 @@ func plan_holes(walks: Array, avoid: Array, count: int) -> Array:
 	return out
 
 
-func _put(parent: Node3D, ps: PackedScene, pos: Vector3, rot: Vector3, top: Material = null) -> void:
+func _put(parent: Node3D, ps: PackedScene, pos: Vector3, rot: Vector3, top: Material = null, collide: bool = false) -> void:
 	var n: Node3D = ps.instantiate()
 	n.position = pos
 	n.rotation = rot
 	parent.add_child(n)
+	if collide:
+		add_model_collision(n, ps.resource_path)
 	if top != null:
 		for c in n.find_children("*", "MeshInstance3D", true, false):
 			(c as MeshInstance3D).set_surface_override_material(0, top)
@@ -863,13 +897,13 @@ func build_tile_patches(holes: Array) -> void:
 			var tilt: Vector3 = Vector3(dmg_rng.randf_range(-0.12, 0.12), dmg_rng.randf() * TAU, dmg_rng.randf_range(-0.12, 0.12))
 			if k % 4 == 3:
 				tilt.x = dmg_rng.randf_range(0.35, 0.6)  # viên dựng nghiêng
-			_put(root, oct, pc + jit + Vector3(0, TILE_T + float(layer) * (TILE_T + 0.004) + absf(tilt.x) * 0.1, 0), tilt, mat(Color(0.47, 0.27, 0.24), 0.9))
+			_put(root, oct, pc + jit + Vector3(0, TILE_T + float(layer) * (TILE_T + 0.004) + absf(tilt.x) * 0.1, 0), tilt, mat(Color(0.47, 0.27, 0.24), 0.9), true)
 		for k in loose_sq:
 			var jit2: Vector3 = Vector3(dmg_rng.randf_range(-0.3, 0.3), 0, dmg_rng.randf_range(-0.3, 0.3))
 			var rot3: Vector3 = Vector3(0, dmg_rng.randf() * TAU, 0)
 			if dmg_rng.randf() < 0.3:
 				rot3.x = PI / 2.0  # nằm nghiêng lộ thân bê tông
-			_put(root, sq, pc + jit2 + Vector3(0, TILE_T, 0), rot3, mat(Color(0.64, 0.57, 0.38), 0.9))
+			_put(root, sq, pc + jit2 + Vector3(0, TILE_T, 0), rot3, mat(Color(0.64, 0.57, 0.38), 0.9), true)
 
 
 ## Rải lá vàng rụng trên vỉa hè (MultiMesh, nhiều quanh gốc cây).

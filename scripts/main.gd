@@ -873,12 +873,19 @@ func _make_pile(pos: Vector3, kind: String) -> StaticBody3D:
 		mi.material_override = mat
 		mi.position = Vector3(GameState.rng.randf_range(-0.35, 0.35), r * 0.45, GameState.rng.randf_range(-0.35, 0.35))
 		body.add_child(mi)
-	var cs: CollisionShape3D = CollisionShape3D.new()
-	var sh: BoxShape3D = BoxShape3D.new()
-	sh.size = Vector3(1.1, 0.5, 1.1)
-	cs.shape = sh
-	cs.position = Vector3(0, 0.25, 0)
-	body.add_child(cs)
+		# va chạm ôm sát từng túi rác / ụ lá (đứng lên thì đúng độ cao, không lơ lửng)
+		var cs: CollisionShape3D = CollisionShape3D.new()
+		if kind == "trash":
+			var ss: SphereShape3D = SphereShape3D.new()
+			ss.radius = r * 0.7
+			cs.shape = ss
+		else:
+			var cy: CylinderShape3D = CylinderShape3D.new()
+			cy.radius = r * 0.85
+			cy.height = r * 0.7
+			cs.shape = cy
+		cs.position = mi.position
+		body.add_child(cs)
 	street_items.add_child(body)
 	body.set_meta("pile", kind)
 	_mark(body, "pile", "Bới đụn rác" if kind == "trash" else "Bới đụn lá")
