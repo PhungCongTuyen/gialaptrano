@@ -8,6 +8,12 @@ Game tìm file giọng theo tên trong cột "ten_file" của danh_sach_cau_thoa
               mỗi nhân vật một cao độ khác nhau.
 - Không có cả hai -> chỉ hiện chữ.
 
+Tạo giọng AI tự động (edge-tts, miễn phí, cần mạng):
+  python -m pip install edge-tts
+  python tools/tao_giong_edge.py            (chỉ tạo câu chưa có file)
+  python tools/tao_giong_edge.py --lam-lai  (tạo lại tất cả sau khi sửa lời thoại)
+Giọng và cao độ của từng nhân vật chỉnh trong bảng NHAN_VAT của script.
+
 Cài giọng tiếng Việt cho Windows: Settings > Time & language > Speech
 > Add voices > Tiếng Việt. Khởi động lại Godot sau khi cài.
 
