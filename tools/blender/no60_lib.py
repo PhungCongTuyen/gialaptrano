@@ -31,21 +31,25 @@ def write_glb(path, parts):
         vf, pn, pa, cos_lim = _smooth_normals(me, ang)
         mats = [s.material for s in ob.material_slots] or [None]
         vmaps = {}
+        uvl0 = me.uv_layers.get("UVMap") or (me.uv_layers[0] if len(me.uv_layers) else None)
+        uvl1 = me.uv_layers.get("UV2")
         ca = me.color_attributes.get("Col")
         vcols = [tuple(ca.data[i].color) for i in range(len(me.vertices))] if (ca is not None and ca.domain == 'POINT') else None
         for tri in me.loop_triangles:
             m = mats[tri.material_index] if tri.material_index < len(mats) else mats[0]
             key_m = m.name if m else "_default"
-            P = prims.setdefault(key_m, {"pos": [], "nor": [], "col": [], "idx": [], "mat": m})
+            P = prims.setdefault(key_m, {"pos": [], "nor": [], "col": [], "uv0": [], "uv1": [], "idx": [], "mat": m})
             vmap = vmaps.setdefault(key_m, {})
             fn = pn[tri.polygon_index]
-            for vi in tri.vertices:
+            for li, vi in zip(tri.loops, tri.vertices):
+                u0 = tuple(uvl0.data[li].uv) if uvl0 else (0.0, 0.0)
+                u1 = tuple(uvl1.data[li].uv) if uvl1 else (0.0, 0.0)
                 acc = Vector()
                 for f in vf[vi]:
                     if pn[f].dot(fn) >= cos_lim:
                         acc += pn[f] * max(pa[f], 1e-10)
                 n = acc.normalized() if acc.length > 0 else fn
-                key = (vi, round(n.x, 3), round(n.y, 3), round(n.z, 3))
+                key = (vi, round(n.x, 3), round(n.y, 3), round(n.z, 3), round(u0[0], 5), round(u0[1], 5), round(u1[0], 4), round(u1[1], 4))
                 if key not in vmap:
                     v = mw @ me.vertices[vi].co
                     nn = (nmat @ n).normalized()
@@ -53,6 +57,8 @@ def write_glb(path, parts):
                     P["pos"].append((v.x, v.z, -v.y))
                     P["nor"].append((nn.x, nn.z, -nn.y))
                     P["col"].append(vcols[vi] if vcols else (1.0, 1.0, 1.0, 1.0))
+                    P["uv0"].append((u0[0], 1.0 - u0[1]))
+                    P["uv1"].append((u1[0], 1.0 - u1[1]))
                 P["idx"].append(vmap[key])
         oe.to_mesh_clear()
     pad = lambda b: b + b"\x00" * ((4 - len(b) % 4) % 4)
@@ -63,8 +69,10 @@ def write_glb(path, parts):
         nb = pad(b"".join(struct.pack("<3f", *n) for n in P["nor"]))
         ib = pad(b"".join(struct.pack("<I", k) for k in P["idx"]))
         cb = pad(b"".join(struct.pack("<4f", *c) for c in P["col"]))
+        t0 = pad(b"".join(struct.pack("<2f", *c) for c in P["uv0"]))
+        t1 = pad(b"".join(struct.pack("<2f", *c) for c in P["uv1"]))
         base = len(views)
-        for blob, tgt in ((pb, 34962), (nb, 34962), (ib, 34963), (cb, 34962)):
+        for blob, tgt in ((pb, 34962), (nb, 34962), (ib, 34963), (cb, 34962), (t0, 34962), (t1, 34962)):
             views.append({"buffer": 0, "byteOffset": len(binb), "byteLength": len(blob), "target": tgt})
             binb += blob
         mn = [min(p[k] for p in P["pos"]) for k in range(3)]
@@ -72,8 +80,11 @@ def write_glb(path, parts):
         accs += [{"bufferView": base, "componentType": 5126, "count": len(P["pos"]), "type": "VEC3", "min": mn, "max": mx},
                  {"bufferView": base + 1, "componentType": 5126, "count": len(P["nor"]), "type": "VEC3"},
                  {"bufferView": base + 2, "componentType": 5125, "count": len(P["idx"]), "type": "SCALAR"},
-                 {"bufferView": base + 3, "componentType": 5126, "count": len(P["col"]), "type": "VEC4"}]
-        gprims.append({"attributes": {"POSITION": 4 * i, "NORMAL": 4 * i + 1, "COLOR_0": 4 * i + 3}, "indices": 4 * i + 2, "material": i})
+                 {"bufferView": base + 3, "componentType": 5126, "count": len(P["col"]), "type": "VEC4"},
+                 {"bufferView": base + 4, "componentType": 5126, "count": len(P["uv0"]), "type": "VEC2"},
+                 {"bufferView": base + 5, "componentType": 5126, "count": len(P["uv1"]), "type": "VEC2"}]
+        gprims.append({"attributes": {"POSITION": 6 * i, "NORMAL": 6 * i + 1, "COLOR_0": 6 * i + 3, "TEXCOORD_0": 6 * i + 4, "TEXCOORD_1": 6 * i + 5},
+                       "indices": 6 * i + 2, "material": i})
         m = P["mat"]
         col, rough, metal, alpha = [0.8, 0.8, 0.8, 1.0], 0.6, 0.0, 1.0
         if m and m.use_nodes and "Principled BSDF" in m.node_tree.nodes:
@@ -446,3 +457,144 @@ def build_items(sc):
     lt = obj_from_bm(sc, "bat_lua_dau", bm, mat("Bac", (0.7, 0.7, 0.7), 0.3, metal=1.0))
     out["bat_lua"] = [(li, 40), (lt, 40)]
     return out
+
+
+# ---------------------------------------------------------------- tay từ gói VR Hands (PolyOne Studio, CC BY 4.0)
+# Bốn ngón co quanh trục X dương của xương; ngón cái cũng X dương (quét ngang lòng bàn tay).
+VR_POSES = {
+    # (khớp 1, 2, 3) cộng thêm vào tư thế gốc (vốn đã cong nhẹ); ngón cái: (đốt 1, 2, 3)
+    "tha_long": {"f": (0, 0, 0), "t": (0, 0, 0)},
+    "cao": {"f": (28, 38, 26), "t": (8, 12, 10)},
+    "nam": {"f": (68, 85, 58), "t": (28, 22, 28)},
+    "kep": {"f": (6, -6, -8), "t": (22, 6, 4)},
+}
+FINGER_NAMES = ["Index", "Middle", "Ring", "Pinky"]
+
+
+def vr_build(sc, arm, src_mesh, pose, skin_mat, scale=1.05):
+    import mathutils
+    pb = arm.pose.bones
+    orig = {b.name: b.rotation_quaternion.copy() for b in pb}
+    P = VR_POSES[pose]
+    for f in FINGER_NAMES:
+        for j in range(3):
+            n = "J_Right_Hand%s%d" % (f, j + 1)
+            pb[n].rotation_quaternion = orig[n] @ mathutils.Quaternion((1, 0, 0), math.radians(P["f"][j]))
+    for j in range(3):
+        n = "J_Right_HandThumb%d" % (j + 1)
+        pb[n].rotation_quaternion = orig[n] @ mathutils.Quaternion((1, 0, 0), math.radians(P["t"][j]))
+    bpy.context.view_layer.update()
+    W = lambda n: arm.matrix_world @ pb[n].head
+    wr = W("J_Right_Hand"); wl = W("J_Left_Hand")
+    F = (W("J_Right_HandMiddle1") - wr).normalized()
+    S = W("J_Right_HandPinky1") - W("J_Right_HandIndex1"); S = (S - F * S.dot(F)).normalized()
+    Z = S.cross(F)
+    M = mathutils.Matrix((S, F, Z))
+    dg = _dg(src_mesh)
+    me = bpy.data.meshes.new_from_object(src_mesh.evaluated_get(dg))
+    for b in pb:
+        b.rotation_quaternion = orig[b.name]
+    bpy.context.view_layer.update()
+    mw = src_mesh.matrix_world
+    bm = bmesh.new(); bm.from_mesh(me); bpy.data.meshes.remove(me)
+    # chỉ giữ tay phải, đưa về hệ toạ độ tay của game (cổ tay ở gốc, ngón +Y, mu tay +Z, ngón cái -X)
+    kill = []
+    for v in bm.verts:
+        p = mw @ v.co
+        if (p - wl).length < (p - wr).length:
+            kill.append(v)
+        else:
+            v.co = (M @ (p - wr)) * scale
+    bmesh.ops.delete(bm, geom=kill, context='VERTS')
+    # cắt bỏ đoạn cổ tay bịt đầu của mô hình gốc để mở mép nối cẳng tay
+    cut = -0.035 * scale
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if v.co.y < cut], context='VERTS')
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+    uvl = bm.loops.layers.uv.get("UVMap") or bm.loops.layers.uv.active
+    # mép hở ở cổ tay
+    bm.edges.ensure_lookup_table()
+    bedges = [e for e in bm.edges if e.is_boundary]
+    loops = []
+    seen = set()
+    for e in bedges:
+        if e in seen:
+            continue
+        loop = [e.verts[0], e.verts[1]]; seen.add(e)
+        while True:
+            last = loop[-1]
+            nxt = [x for x in last.link_edges if x.is_boundary and x not in seen]
+            if not nxt:
+                break
+            x = nxt[0]; seen.add(x)
+            o = x.other_vert(last)
+            if o == loop[0]:
+                break
+            loop.append(o)
+        loops.append(loop)
+    ring0 = max(loops, key=lambda L: len(L))
+    # thứ tự đỉnh quanh mép theo góc (để nối cẳng tay không bị xoắn)
+    cc = sum((v.co for v in ring0), Vector()) / len(ring0)
+    ring0 = sorted(ring0, key=lambda v: math.atan2(v.co.z - cc.z, v.co.x - cc.x))
+    # uv của từng đỉnh mép (lấy ở một loop bất kỳ của đỉnh đó)
+    vuv = {}
+    for v in ring0:
+        for l in v.link_loops:
+            vuv[v] = l[uvl].uv.copy(); break
+    c0 = sum((v.co for v in ring0), Vector()) / len(ring0)
+    # kéo cẳng tay ra từ đúng mép cổ tay
+    ts = [0.03, 0.08, 0.15, 0.25, 0.4, 0.55, 0.7, 0.85, 1.0]
+    rows = [ring0]
+    for t in ts:
+        y = c0.y - 0.46 * t
+        rx = 0.031 + (0.044 - 0.031) * t; rz = 0.021 + (0.034 - 0.021) * t; cz = 0.004 * t
+        w = min(1.0, t / 0.25); w = w * w * (3 - 2 * w)
+        row = []
+        for v in ring0:
+            a = math.atan2(v.co.z - c0.z, v.co.x - c0.x)
+            e = Vector((rx * math.cos(a), y, cz + rz * math.sin(a)))
+            q = Vector((v.co.x, y, v.co.z))
+            row.append(bm.verts.new(q.lerp(e, w)))
+        rows.append(row)
+    n = len(ring0)
+    for i in range(len(rows) - 1):
+        for k in range(n):
+            vs = [rows[i][k], rows[i][(k + 1) % n], rows[i + 1][(k + 1) % n], rows[i + 1][k]]
+            try:
+                f = bm.faces.new(vs)
+            except ValueError:
+                continue
+            for l, src in zip(f.loops, [ring0[k], ring0[(k + 1) % n], ring0[(k + 1) % n], ring0[k]]):
+                l[uvl].uv = vuv[src]
+    cap = bm.faces.new(rows[-1])
+    for l in cap.loops:
+        l[uvl].uv = vuv[ring0[0]]
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    # UV2: chiếu hộp theo pháp tuyến mặt (cho lớp chi tiết lỗ chân lông)
+    uv2 = bm.loops.layers.uv.new("UV2")
+    k2 = 1.0 / 0.05
+    for f in bm.faces:
+        nn = f.normal
+        ax = max(range(3), key=lambda i: abs(nn[i]))
+        for l in f.loops:
+            co = l.vert.co
+            if ax == 0:
+                l[uv2].uv = (co.y * k2, co.z * k2)
+            elif ax == 1:
+                l[uv2].uv = (co.x * k2, co.z * k2)
+            else:
+                l[uv2].uv = (co.x * k2, co.y * k2)
+    out = bpy.data.meshes.new("vr_tay_" + pose)
+    bm.to_mesh(out); bm.free()
+    ob = bpy.data.objects.new("vr_tay_" + pose, out)
+    sc.collection.objects.link(ob)
+    out.materials.clear(); out.materials.append(skin_mat)
+    for p in out.polygons:
+        p.use_smooth = True
+    return ob
+
+
+def vr_sleeve(sc, sleeve_mat):
+    bm2 = bmesh.new()
+    loft(bm2, [(Vector((0, -0.30, 0.004)), 0.052, 0.045), (Vector((0, -0.32, 0.004)), 0.055, 0.048),
+               (Vector((0, -0.43, 0.004)), 0.058, 0.05), (Vector((0, -0.57, 0.004)), 0.06, 0.052)], seg=20)
+    return obj_from_bm(sc, "vr_ao", bm2, sleeve_mat)

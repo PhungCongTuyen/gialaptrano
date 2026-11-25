@@ -169,6 +169,7 @@ func _set_pose(arm: Node3D, pose: String) -> void:
 
 # ---- chất liệu da / vải / móng cho tay (thay vật liệu trơn trong file glb)
 var _mat_skin: StandardMaterial3D
+var _mat_skin_vr: StandardMaterial3D   # tay VR Hands (PolyOne Studio, CC BY 4.0): texture gốc + lớp chi tiết UV2
 var _mat_cloth: StandardMaterial3D
 var _mat_nail: StandardMaterial3D
 
@@ -187,6 +188,26 @@ func _hand_mats() -> void:
 	_mat_skin.subsurf_scatter_enabled = true          # ánh sáng xuyên da (Forward+)
 	_mat_skin.subsurf_scatter_strength = 0.3
 	_mat_skin.subsurf_scatter_skin_mode = true
+	_mat_skin_vr = StandardMaterial3D.new()
+	_mat_skin_vr.albedo_color = Color(0.96, 0.85, 0.77)  # ấm hơn texture gốc (hơi hồng)
+	if ResourceLoader.exists("res://textures/tay/tay_vr_mau_da.png"):
+		_mat_skin_vr.albedo_texture = load("res://textures/tay/tay_vr_mau_da.png")
+	_mat_skin_vr.roughness = 0.6
+	_mat_skin_vr.specular = 0.35
+	_mat_skin_vr.rim_enabled = true
+	_mat_skin_vr.rim = 0.15
+	_mat_skin_vr.rim_tint = 0.4
+	_mat_skin_vr.subsurf_scatter_enabled = true
+	_mat_skin_vr.subsurf_scatter_strength = 0.3
+	_mat_skin_vr.subsurf_scatter_skin_mode = true
+	if ResourceLoader.exists("res://textures/tay/da_normal.png"):
+		# lỗ chân lông, vân da: lớp chi tiết theo UV2 (chiếu hộp, lặp mỗi 5 cm)
+		_mat_skin_vr.detail_enabled = true
+		_mat_skin_vr.detail_uv_layer = BaseMaterial3D.DETAIL_UV_2
+		_mat_skin_vr.detail_blend_mode = BaseMaterial3D.BLEND_MODE_MUL
+		_mat_skin_vr.detail_albedo = load("res://textures/tay/da_chi_tiet_nhe.png")
+		_mat_skin_vr.detail_normal = load("res://textures/tay/da_normal.png")
+	_mat_skin_vr.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	_mat_cloth = StandardMaterial3D.new()
 	_mat_cloth.albedo_color = Color(0.17, 0.22, 0.34)
 	_mat_cloth.roughness = 0.95
@@ -220,7 +241,9 @@ func _apply_hand_mats(hand: MeshInstance3D) -> void:
 	for i in hand.mesh.get_surface_count():
 		var sm: Material = hand.mesh.surface_get_material(i)
 		var nm: String = sm.resource_name.to_lower() if sm != null else ""
-		if nm.begins_with("da"):
+		if nm.begins_with("davr"):
+			hand.set_surface_override_material(i, _mat_skin_vr)
+		elif nm.begins_with("da"):
 			hand.set_surface_override_material(i, _mat_skin)
 		elif nm.begins_with("ao"):
 			hand.set_surface_override_material(i, _mat_cloth)
