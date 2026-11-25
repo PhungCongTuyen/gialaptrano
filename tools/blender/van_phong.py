@@ -15,6 +15,10 @@ except NameError:
     OUT = "E:/gialaptrano/models/van_phong"
 os.makedirs(OUT, exist_ok=True)
 SC = get_scene("VanPhong")
+_WIN = bpy.context.window_manager.windows[0] if bpy.context.window_manager.windows else None
+_OLD_SC = _WIN.scene if _WIN else None
+if _WIN:
+    _WIN.scene = SC   # để cảnh có depsgraph (modifier được tính)
 R = random.Random(60)
 
 # ------------------------------------------------------------------ vật liệu (màu tuyến tính)
@@ -660,4 +664,6 @@ cang_tay("cang_tay_phai", 1)
 cang_tay("cang_tay_trai", -1)
 linh()
 clear_scene(SC)
+if _WIN and _OLD_SC:
+    _WIN.scene = _OLD_SC
 result = {"log": LOG, "leds": len(LEDS)}
