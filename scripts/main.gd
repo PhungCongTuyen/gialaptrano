@@ -117,6 +117,8 @@ func _process(delta: float) -> void:
 		_check_robbers()
 		_update_site(delta)
 		_poll_state()
+	if in_room and linh != null:
+		_update_office(delta)
 	_update_watch()
 	var label: String = ""
 	if is_instance_valid(player.target) and not hud.menu_open and not hud.inv_open:
@@ -671,10 +673,297 @@ func _person(parent: Node3D, pos: Vector3, color: Color, name_text: String, opts
 	return b
 
 
+# ---------------------------------------------------------------------- văn phòng (intro)
+# Đồ đạc dựng trong Blender: tools/blender/van_phong.py -> models/van_phong/*.glb
+# Texture: tools/tao_texture_van_phong.py -> textures/van_phong/*.png
+const VP: String = "res://models/van_phong/"
+const VP_TEX: String = "res://textures/van_phong/"
+const VP_SHIRTS: Array = [Color(0.92, 0.93, 0.95), Color(0.62, 0.74, 0.9), Color(0.92, 0.72, 0.76), Color(0.75, 0.76, 0.78), Color(0.16, 0.2, 0.34), Color(0.95, 0.9, 0.78), Color(0.55, 0.68, 0.6)]
+const VP_PANTS: Array = [Color(0.05, 0.05, 0.06), Color(0.08, 0.1, 0.18), Color(0.25, 0.25, 0.27), Color(0.45, 0.4, 0.3)]
+const VP_SKINS: Array = [Color(0.86, 0.66, 0.52), Color(0.8, 0.6, 0.46), Color(0.9, 0.72, 0.6), Color(0.74, 0.54, 0.4)]
+const VP_SCREENS: Array = ["man_hinh_bang_tinh", "man_hinh_code", "man_hinh_email", "man_hinh_bieu_do"]
+var office_workers: Array = []   # {"l": Node3D, "r": Node3D, "ph": float, "sp": float}
+var office_door: Node3D
+var linh_parts: Dictionary = {}
+var linh_path: Array = []
+var linh_walk_cb: Callable = Callable()
+var linh_phase: float = 0.0
+var linh_face_player: bool = false
+var _vp_cache: Dictionary = {}
+
+
+func _vp_tex_mat(tex: String, unshaded: bool) -> StandardMaterial3D:
+	var key: String = tex + ("_u" if unshaded else "")
+	if _vp_cache.has(key):
+		return _vp_cache[key]
+	var m: StandardMaterial3D = StandardMaterial3D.new()
+	var path: String = VP_TEX + tex + ".png"
+	if ResourceLoader.exists(path):
+		m.albedo_texture = load(path)
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	m.roughness = 0.35
+	if unshaded:
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_vp_cache[key] = m
+	return m
+
+
+func _vp_tint(base: Material, c: Color) -> Material:
+	var key: String = base.resource_name + c.to_html()
+	if _vp_cache.has(key):
+		return _vp_cache[key]
+	var m: BaseMaterial3D = (base as BaseMaterial3D).duplicate()
+	m.albedo_color = c
+	_vp_cache[key] = m
+	return m
+
+
+## Gắn texture / màu theo tên vật liệu trong model Blender.
+func _vp_fix(n: Node, o: Dictionary = {}) -> void:
+	for node in n.find_children("*", "MeshInstance3D", true, false):
+		var mi: MeshInstance3D = node
+		for i in mi.mesh.get_surface_count():
+			var m: Material = mi.mesh.surface_get_material(i)
+			if m == null:
+				continue
+			var r: Material = null
+			match m.resource_name:
+				"ManHinh":
+					r = _vp_tex_mat(str(o.get("screen", "man_hinh_bang_tinh")), true)
+				"DenLED":
+					if not _vp_cache.has("led"):
+						var lm: StandardMaterial3D = StandardMaterial3D.new()
+						lm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+						lm.albedo_color = Color(1.0, 0.99, 0.95)
+						_vp_cache["led"] = lm
+					r = _vp_cache["led"]
+				"CanhNgoai":
+					r = _vp_tex_mat("canh_ngoai", true)
+				"BangTrang":
+					r = _vp_tex_mat("bang_trang", false)
+				"MatDongHo":
+					r = _vp_tex_mat("mat_dong_ho", false)
+				"TranThach":
+					r = _vp_tex_mat("tran", false)
+				"Ao", "Quan", "Da":
+					var key: String = {"Ao": "ao", "Quan": "quan", "Da": "da"}[m.resource_name]
+					if o.has(key):
+						r = _vp_tint(m, o[key])
+			if r != null:
+				mi.set_surface_override_material(i, r)
+
+
+## Đặt một model văn phòng. Trả về null nếu thiếu file.
+func _vp(parent: Node3D, name: String, pos: Vector3, yaw: float = 0.0, collide: bool = false, o: Dictionary = {}) -> Node3D:
+	var path: String = VP + name + ".glb"
+	if not ResourceLoader.exists(path):
+		return null
+	var n: Node3D = (load(path) as PackedScene).instantiate()
+	n.position = pos
+	n.rotation.y = yaw
+	parent.add_child(n)
+	_vp_fix(n, o)
+	if collide:
+		town.add_model_collision(n, path)
+	return n
+
+
+func _vp_col(parent: Node3D, size: Vector3, pos: Vector3) -> void:
+	var body: StaticBody3D = StaticBody3D.new()
+	body.position = pos
+	var cs: CollisionShape3D = CollisionShape3D.new()
+	var sh: BoxShape3D = BoxShape3D.new()
+	sh.size = size
+	cs.shape = sh
+	body.add_child(cs)
+	parent.add_child(body)
+
+
+## Một người ngồi gõ phím. pos = tâm ghế trên sàn, quay mặt theo yaw (mặt về -Z khi yaw = 0).
+func _vp_worker(parent: Node3D, pos: Vector3, yaw: float, female: bool, rng: RandomNumberGenerator) -> void:
+	var o: Dictionary = {
+		"ao": VP_SHIRTS[rng.randi_range(0, VP_SHIRTS.size() - 1)],
+		"quan": VP_PANTS[rng.randi_range(0, VP_PANTS.size() - 1)],
+		"da": VP_SKINS[rng.randi_range(0, VP_SKINS.size() - 1)]}
+	var body: Node3D = _vp(parent, "nguoi_ngoi_nu" if female else "nguoi_ngoi_nam", pos, yaw, false, o)
+	if body == null:
+		return
+	var k: float = 0.93 if female else 1.0
+	var arms: Array = []
+	for side in [-1.0, 1.0]:
+		var a: Node3D = _vp(body, "cang_tay_phai" if side > 0 else "cang_tay_trai", Vector3(side * 0.205 * k, 0.87, -0.16), 0.0, false, o)
+		arms.append(a)
+	office_workers.append({"l": arms[0], "r": arms[1], "ph": rng.randf() * TAU, "sp": rng.randf_range(9.0, 13.0), "body": body})
+
+
+## Bàn làm việc + ghế (+ người ngồi). pos = tâm bàn trên sàn; người ngồi phía +Z của bàn khi yaw = 0.
+func _vp_desk(parent: Node3D, pos: Vector3, yaw: float, screen: String, who: String, rng: RandomNumberGenerator, chair_off: Vector3 = Vector3(INF, 0, 0), chair_yaw: float = 0.0) -> void:
+	_vp(parent, "ban_lam_viec", pos, yaw, true, {"screen": screen})
+	var basis: Basis = Basis(Vector3.UP, yaw)
+	var seat: Vector3 = pos + basis * Vector3(0, 0, 0.72)
+	if chair_off.x != INF:
+		_vp(parent, "ghe_xoay", pos + basis * chair_off, yaw + chair_yaw, true)
+	elif who == "":
+		_vp(parent, "ghe_xoay", seat + basis * Vector3(rng.randf_range(-0.15, 0.15), 0, rng.randf_range(0.0, 0.25)), yaw + rng.randf_range(-0.5, 0.5), true)
+	else:
+		_vp(parent, "ghe_xoay", seat, yaw, true)
+		_vp_worker(parent, seat, yaw, who == "nu", rng)
+	var c: int = rng.randi_range(0, 2)
+	if c > 0 and who != "toi":
+		_vp(parent, "do_tren_ban_%d" % c, pos + basis * Vector3(-0.45 if c == 1 else 0.5, 0, 0.02), yaw + rng.randf_range(-0.2, 0.2))
+
+
 func _build_office() -> void:
 	var root: Node3D = Node3D.new()
 	root.position = OFFICE_ORIGIN
 	add_child(root)
+	if not ResourceLoader.exists(VP + "phong_vo.glb"):
+		_build_office_simple(root)
+		return
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = 4547
+	var hw: float = OFFICE_SIZE.x / 2.0
+	var hd: float = OFFICE_SIZE.z / 2.0
+	# sàn thảm ô vuông
+	var fl: StaticBody3D = _box(root, Vector3(OFFICE_SIZE.x + 0.3, 0.2, OFFICE_SIZE.z + 0.3), Vector3(0, -0.1, 0), Color(0.5, 0.5, 0.5))
+	var fm: StandardMaterial3D = StandardMaterial3D.new()
+	if ResourceLoader.exists(VP_TEX + "tham.png"):
+		fm.albedo_texture = load(VP_TEX + "tham.png")
+	fm.uv1_triplanar = true
+	fm.uv1_world_triplanar = true
+	fm.uv1_scale = Vector3(0.5, 0.5, 0.5)
+	fm.roughness = 0.95
+	fm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	(fl.get_child(0) as MeshInstance3D).material_override = fm
+	# vỏ phòng, trần, cảnh phố ngoài cửa sổ; va chạm tường
+	_vp(root, "phong_vo", Vector3.ZERO)
+	_vp(root, "tran", Vector3.ZERO)
+	_vp(root, "canh_ngoai", Vector3.ZERO)
+	_vp_col(root, Vector3(OFFICE_SIZE.x + 1, 4, 0.3), Vector3(0, 2, -hd - 0.15))
+	_vp_col(root, Vector3(OFFICE_SIZE.x + 1, 4, 0.3), Vector3(0, 2, hd + 0.15))
+	_vp_col(root, Vector3(0.3, 4, OFFICE_SIZE.z + 1), Vector3(-hw - 0.15, 2, 0))
+	_vp_col(root, Vector3(0.3, 4, OFFICE_SIZE.z + 1), Vector3(hw + 0.15, 2, 0))
+	_vp_col(root, Vector3(OFFICE_SIZE.x + 1, 0.2, OFFICE_SIZE.z + 1), Vector3(0, OFFICE_SIZE.y + 0.1, 0))
+	office_door = _vp(root, "cua_ra_vao", Vector3(-0.49, 0, hd - 0.02))
+	# đèn trần (đèn LED âm trần là vật liệu tự sáng; ánh sáng thật dùng vài đèn điểm)
+	for lx in [-3.6, 0.0, 3.6]:
+		for lz in [-2.4, 1.8]:
+			var l: OmniLight3D = OmniLight3D.new()
+			l.position = Vector3(lx, OFFICE_SIZE.y - 0.35, lz)
+			l.omni_range = 6.5
+			l.omni_attenuation = 0.7
+			l.light_energy = 0.45
+			l.light_color = Color(1.0, 0.97, 0.92)
+			l.shadow_enabled = lx == -3.6 and lz < 0.0
+			root.add_child(l)
+	# hàng bàn sát cửa sổ (bàn nhân vật chính ở x = -3), cụm bàn đôi giữa phòng
+	var cols: Array = [-4.45, -3.0, -1.55, 1.55, 3.0, 4.45]
+	var row1: Array = ["nam", "toi", "nu", "nam", "", "nam"]
+	var pod_a: Array = ["", "nu", "nam", "nu", "nam", ""]
+	var pod_b: Array = ["nam", "", "", "nu", "", "nu"]
+	for i in cols.size():
+		var x: float = cols[i]
+		var scr: String = VP_SCREENS[rng.randi_range(0, VP_SCREENS.size() - 1)]
+		if row1[i] == "toi":
+			_vp_desk(root, Vector3(x, 0, -3.4), 0.0, "man_hinh_bao_cao", "toi", rng, Vector3(-0.75, 0, 0.9), 0.6)
+		else:
+			_vp_desk(root, Vector3(x, 0, -3.4), 0.0, scr, row1[i], rng)
+		_vp_desk(root, Vector3(x, 0, 0.85), PI, VP_SCREENS[rng.randi_range(0, VP_SCREENS.size() - 1)], pod_a[i], rng)
+		_vp_desk(root, Vector3(x, 0, 1.55), 0.0, VP_SCREENS[rng.randi_range(0, VP_SCREENS.size() - 1)], pod_b[i], rng)
+	# tủ, máy in, cây nước, cây cảnh dọc tường
+	_vp(root, "tu_sat", Vector3(-5.3, 0, hd - 0.245), PI, true)
+	_vp(root, "tu_sat", Vector3(-4.28, 0, hd - 0.245), PI, true)
+	_vp(root, "tu_ho_so", Vector3(-3.45, 0, hd - 0.33), PI, true)
+	_vp(root, "tu_ho_so", Vector3(-2.96, 0, hd - 0.33), PI, true)
+	_vp(root, "chau_cay", Vector3(-2.2, 0, hd - 0.3), 0.0, true)
+	_vp(root, "cay_nuoc", Vector3(1.25, 0, hd - 0.22), PI, true)
+	_vp(root, "may_in", Vector3(2.5, 0, hd - 0.36), PI, true, {"screen": "man_hinh_bieu_do"})
+	_vp(root, "tu_ho_so", Vector3(3.6, 0, hd - 0.33), PI, true)
+	_vp(root, "tu_ho_so", Vector3(4.09, 0, hd - 0.33), PI, true)
+	_vp(root, "chau_cay", Vector3(5.45, 0, hd - 0.35), 1.0, true)
+	_vp(root, "tu_sat", Vector3(-hw + 0.245, 0, -1.55), PI / 2.0, true)
+	_vp(root, "tu_sat", Vector3(-hw + 0.245, 0, -0.53), PI / 2.0, true)
+	_vp(root, "chau_cay", Vector3(-5.5, 0, -4.05), 2.0, true)
+	_vp(root, "chau_cay", Vector3(5.5, 0, -4.05), 0.4, true)
+	_vp(root, "dieu_hoa", Vector3(-hw + 0.115, 2.55, 2.6), PI / 2.0)
+	_vp(root, "dieu_hoa", Vector3(hw - 0.115, 2.55, 2.6), -PI / 2.0)
+	_vp(root, "bang_trang", Vector3(hw - 0.02, 1.45, -1.3), -PI / 2.0)
+	_vp(root, "dong_ho", Vector3(hw - 0.02, 2.45, 0.6), -PI / 2.0)
+	# bản báo cáo trên bàn nhân vật chính (chỉ nhặt được sau khi chọn "lên sau")
+	office_report = _box(root, Vector3(0.21, 0.012, 0.297), Vector3(-3.47, 0.757, -3.22), Color(0.97, 0.97, 0.94))
+	office_report.rotation.y = 0.12
+	_glow(office_report, Color(1.0, 0.97, 0.82))
+	(office_report.get_child(0).material_override as StandardMaterial3D).emission_energy_multiplier = 0.35
+	_mark(office_report, "report", "Nhặt bản báo cáo")
+	office_report.remove_meta("interact")
+	linh = _vp_linh(root)
+	linh.visible = false
+
+
+## Linh (dựng trong Blender): thân + 2 chân xoay ở hông + 2 tay xoay ở vai, đi được bằng town.animate_walk.
+func _vp_linh(parent: Node3D) -> Node3D:
+	if not ResourceLoader.exists(VP + "linh_than.glb"):
+		return _person(parent, Vector3(3.5, 0.8, 3.2), Color(0.9, 0.5, 0.7), "Linh")
+	var n: Node3D = Node3D.new()
+	parent.add_child(n)
+	var o: Dictionary = {"ao": Color(0.95, 0.93, 0.9), "quan": Color(0.07, 0.08, 0.14)}
+	_vp(n, "linh_than", Vector3.ZERO, 0.0, false, o)
+	var legs: Array = [_vp(n, "linh_chan_trai", Vector3(-0.085, 0.9, 0), 0.0, false, o), _vp(n, "linh_chan_phai", Vector3(0.085, 0.9, 0), 0.0, false, o)]
+	var arms: Array = [_vp(n, "linh_tay_trai", Vector3(-0.165, 1.33, 0), 0.0, false, o), _vp(n, "linh_tay_phai", Vector3(0.165, 1.33, 0), 0.0, false, o)]
+	linh_parts = {"root": n, "legs": legs, "arms": arms}
+	return n
+
+
+## Cho Linh đi theo các điểm (toạ độ trong văn phòng), xong thì gọi cb.
+func _linh_walk(pts: Array, cb: Callable = Callable()) -> void:
+	linh_path = pts.duplicate()
+	linh_walk_cb = cb
+	linh_face_player = false
+
+
+func _update_office(delta: float) -> void:
+	var t: float = Time.get_ticks_msec() / 1000.0
+	for w in office_workers:
+		var d: Dictionary = w
+		var ph: float = float(d["ph"])
+		# gõ phím từng đợt: lúc gõ nhanh, lúc dừng cầm chuột / đọc màn hình
+		var on: float = clampf(sin(t * 0.45 + ph) * 3.0 + 1.0, 0.0, 1.0)
+		var sp: float = float(d["sp"])
+		if is_instance_valid(d["l"]):
+			(d["l"] as Node3D).rotation.x = (sin(t * sp + ph) * 0.05 + 0.02) * on
+		if is_instance_valid(d["r"]):
+			(d["r"] as Node3D).rotation.x = (sin(t * sp * 1.13 + ph + 1.7) * 0.05 + 0.02) * on
+			(d["r"] as Node3D).rotation.y = (1.0 - on) * 0.18
+	if linh == null or not linh.visible or linh_parts.is_empty():
+		return
+	if linh_path.size() > 0:
+		var target: Vector3 = OFFICE_ORIGIN + (linh_path[0] as Vector3)
+		var to: Vector3 = target - linh.global_position
+		to.y = 0.0
+		var step: float = 1.3 * delta
+		if to.length() <= step:
+			linh.global_position = Vector3(target.x, linh.global_position.y, target.z)
+			linh_path.pop_front()
+			if linh_path.is_empty():
+				town.animate_walk(linh_parts, 0.0, false)
+				linh_face_player = true
+				if linh_walk_cb.is_valid():
+					var cb: Callable = linh_walk_cb
+					linh_walk_cb = Callable()
+					cb.call()
+		else:
+			linh.global_position += to.normalized() * step
+			var want: float = atan2(-to.x, -to.z)
+			linh.rotation.y = lerp_angle(linh.rotation.y, want, minf(1.0, delta * 8.0))
+			linh_phase += delta * 8.2
+			town.animate_walk(linh_parts, linh_phase, true)
+	elif linh_face_player:
+		var tp: Vector3 = player.global_position - linh.global_position
+		linh.rotation.y = lerp_angle(linh.rotation.y, atan2(-tp.x, -tp.z), minf(1.0, delta * 4.0))
+
+
+func _build_office_simple(root: Node3D) -> void:
 	_shell(root, OFFICE_SIZE, Color(0.82, 0.84, 0.86), Color(0.35, 0.37, 0.4))
 	# Hàng bàn làm việc phía trong. Bàn của nhân vật chính ở x = -3.
 	for x in [-3.0, 0.5, 4.0]:
@@ -1667,8 +1956,53 @@ func _show_intro() -> void:
 	in_room = true
 	intro_took_report = false
 	hud.show_panels(false)
-	player.teleport(OFFICE_ORIGIN + Vector3(-3.0, 1.0, -1.2), 0.0)
-	_say("VĂN PHÒNG  ·  4:45 CHIỀU", "Một buổi chiều như mọi buổi chiều. Màn hình đầy bảng số liệu, và trên bàn bạn là bản báo cáo tuần chưa nộp.", _intro_linh, "intro_01")
+	player.teleport(OFFICE_ORIGIN + Vector3(-3.0, 1.0, -2.25), 0.0)
+	# Linh từ cửa đi tới chỗ mình trong lúc mình đang nói
+	linh.visible = true
+	linh.position = Vector3(0, 0, OFFICE_SIZE.z / 2.0 - 0.4)
+	linh.rotation.y = 0.0
+	_office_door(true)
+	_linh_walk([Vector3(0, 0, -1.45), Vector3(-2.2, 0, -1.9)], _intro_linh_arrived)
+	intro_linh_ready = false
+	intro_line_done = false
+	_say("Tôi", "Cuối cùng cũng làm xong bản báo cáo rồi, mệt ghê.", _intro_line_done, "intro_01")
+
+
+var intro_linh_ready: bool = false
+var intro_line_done: bool = false
+
+
+func _office_door(open: bool) -> void:
+	if office_door == null:
+		return
+	var tw: Tween = create_tween()
+	tw.tween_property(office_door, "rotation:y", 1.5 if open else 0.0, 0.9).set_trans(Tween.TRANS_SINE)
+	if open:
+		tw.tween_interval(2.2)
+		tw.tween_property(office_door, "rotation:y", 0.0, 1.2).set_trans(Tween.TRANS_SINE)
+
+
+## Quay đầu nhân vật về phía Linh.
+func _turn_to_linh(dur: float = 1.1) -> void:
+	var to: Vector3 = linh.global_position - player.global_position
+	var want: float = atan2(-to.x, -to.z)
+	var from: float = player.rotation.y
+	var tw: Tween = create_tween()
+	tw.tween_method(func(v: float): player.rotation.y = v, from, from + wrapf(want - from, -PI, PI), dur).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.parallel().tween_method(player.set_pitch, player.pitch, -0.08, dur)
+
+
+func _intro_line_done() -> void:
+	intro_line_done = true
+	if intro_linh_ready:
+		_intro_linh()
+
+
+func _intro_linh_arrived() -> void:
+	intro_linh_ready = true
+	_turn_to_linh()
+	if intro_line_done:
+		get_tree().create_timer(0.9).timeout.connect(_intro_linh)
 
 
 func _intro_linh() -> void:
@@ -1688,7 +2022,8 @@ func _intro_go_later() -> void:
 
 
 func _intro_think() -> void:
-	linh.visible = false
+	# Linh quay về chỗ ngồi
+	_linh_walk([Vector3(-0.6, 0, -1.4), Vector3(-0.6, 0, 2.6), Vector3(-1.2, 0, 2.6)], func(): linh.visible = false)
 	_say("Tôi (nghĩ thầm)", "Chắc là cần mình nộp báo cáo đây.", _intro_report_task, "intro_05")
 
 

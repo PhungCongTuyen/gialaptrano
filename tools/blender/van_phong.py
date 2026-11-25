@@ -73,6 +73,7 @@ M = {
     "Toc": mat("Toc", (0.012, 0.009, 0.008), 0.55),
     "MatNguoi": mat("MatNguoi", (0.01, 0.008, 0.006), 0.2),
     "Moi": mat("Moi", (0.45, 0.2, 0.16), 0.5),
+    "CucAo": mat("CucAo", (0.6, 0.6, 0.58), 0.3),
 }
 
 
@@ -570,12 +571,18 @@ def _head(p, c, female=False, hair_style="ngan"):
     kill = []
     for v in vs:
         x, y, z = v.co
-        if y > 0.35:
-            lim = 0.42 - (0.12 if female else 0.0)
-        elif y > -0.3:
-            lim = -0.05 if abs(x) < 0.85 else 0.15
+        # chân tóc: trán cao ở phía trước, phủ tai và gáy ở hai bên / phía sau
+        if female:
+            front, side, back = 0.22, -0.62, -0.95
         else:
-            lim = -0.62 if not female else -0.75
+            front, side, back = 0.36, -0.12, -0.55
+        if y > 0.55:
+            lim = front - 0.25 * abs(x)   # tóc mái lệch hai bên
+        elif y > -0.35:
+            t = (y + 0.35) / 0.9
+            lim = side + (front - side) * t * t
+        else:
+            lim = back
         if z < lim:
             kill.append(v)
     keep = [v for v in vs if v not in set(kill)]
@@ -583,12 +590,25 @@ def _head(p, c, female=False, hair_style="ngan"):
     sc = (0.087, 0.104, 0.119) if not female else (0.088, 0.104, 0.12)
     bmesh.ops.transform(dst, matrix=Matrix.Translation(c + Vector((0, -0.004, 0.006))) @ Matrix.Diagonal((*sc, 1.0)), verts=keep)
     if hair_style == "dai":
-        tube(p.bm("Toc", sub=1, ang=180), [c + Vector((0, -0.05, 0.05)), c + Vector((0, -0.085, -0.06)), c + Vector((0, -0.09, -0.2)), c + Vector((0, -0.075, -0.3))],
-             [(0.082, 0.045), (0.09, 0.04), (0.088, 0.03), (0.07, 0.02)], ref=(1, 0, 0), seg=12)
+        tb = p.bm("Toc", sub=1, ang=180)
+        tube(tb, [c + Vector((0, -0.05, 0.06)), c + Vector((0, -0.09, -0.06)), c + Vector((0, -0.095, -0.2)), c + Vector((0, -0.085, -0.33))],
+             [(0.086, 0.05), (0.095, 0.045), (0.095, 0.035), (0.085, 0.022)], ref=(1, 0, 0), seg=12)
+        for sx in (-1, 1):   # hai dải tóc trước vai
+            tube(tb, [c + Vector((sx * 0.078, 0.0, 0.02)), c + Vector((sx * 0.088, -0.01, -0.1)), c + Vector((sx * 0.095, -0.025, -0.22))],
+                 [(0.025, 0.035), (0.027, 0.04), (0.02, 0.03)], ref=(0, 1, 0), seg=10)
     elif hair_style == "duoi_ngua":
         tube(p.bm("Toc", sub=1, ang=180), [c + Vector((0, -0.1, 0.03)), c + Vector((0, -0.13, -0.04)), c + Vector((0, -0.125, -0.15)), c + Vector((0, -0.11, -0.25))],
              [0.03, 0.032, 0.026, 0.012], ref=(1, 0, 0), seg=10)
         cyl(p.bm("BiaDen"), c + Vector((0, -0.098, 0.035)), 0.022, 0.018, seg=12, rot=(1.3, 0, 0))
+
+
+def _collar(p, c, tilt, r):
+    """cổ áo sơ mi: hai vạt bẻ ra hai bên quanh chân cổ"""
+    c = Vector(c)
+    b = p.bm("Ao", sub=1, ang=180)
+    for sx in (-1, 1):
+        pts = [c + Vector((sx * r * math.sin(a), r * math.cos(a) * 0.9, 0.012 - 0.01 * (a / math.pi))) for a in (0.15, 0.9, 1.7, 2.6)]
+        tube(b, pts, [(0.012, 0.03), (0.013, 0.032), (0.013, 0.03), (0.012, 0.026)], ref=(0, 0, 1), seg=8)
 
 
 def nguoi_ngoi(name, female):
@@ -597,9 +617,9 @@ def nguoi_ngoi(name, female):
     ao = p.bm("Ao", sub=1, ang=180)
     tube(ao, [(0, -0.05, 0.64), (0, -0.035, 0.76), (0, -0.02, 0.9), (0, 0.0, 1.0), (0, 0.01, 1.08), (0, 0.03, 1.135)],
          [(0.16 * k, 0.115), (0.145 * k, 0.1), (0.15 * k, 0.105), (0.168 * k, 0.11), (0.172 * k, 0.095), (0.1 * k, 0.065)], ref=(1, 0, 0), seg=16)
-    if female:
-        for sx in (-1, 1):
-            ell(ao, (sx * 0.06, 0.075, 0.965), (0.06, 0.05, 0.06), seg=12, rings=8)
+    _collar(p, (0, 0.035, 1.125), (0, 0.01, 0.0), 0.06 * k)
+    for z, y in ((1.07, 0.1), (0.985, 0.105), (0.9, 0.08), (0.815, 0.066)):
+        ell(p.bm("CucAo", ang=180), (0, y, z), (0.007, 0.004, 0.007), seg=8, rings=5)
     for sx in (-1, 1):
         ell(ao, (sx * 0.165 * k, 0.0, 1.07), (0.065, 0.065, 0.06), seg=12, rings=8)
         tube(ao, [(sx * 0.185 * k, 0.0, 1.07), (sx * 0.197 * k, 0.08, 0.97), (sx * 0.205 * k, 0.16, 0.87)], [0.056, 0.05, 0.046], ref=(0, 1, 0), seg=12)
@@ -633,11 +653,13 @@ def linh():
     tube(ao, [(0, 0, 0.92), (0, 0, 1.03), (0, 0.005, 1.13), (0, 0.01, 1.24), (0, 0, 1.33), (0, 0, 1.385)],
          [(0.145, 0.1), (0.122, 0.085), (0.13, 0.092), (0.146, 0.1), (0.158, 0.085), (0.09, 0.06)], ref=(1, 0, 0), seg=16)
     for sx in (-1, 1):
-        ell(ao, (sx * 0.058, 0.07, 1.215), (0.06, 0.05, 0.06), seg=12, rings=8)
         ell(ao, (sx * 0.15, 0.0, 1.33), (0.058, 0.058, 0.055), seg=12, rings=8)
+    _collar(p, (0, 0.0, 1.375), (0, 0.0, 0.0), 0.055)
+    for z, y in ((1.31, 0.086), (1.22, 0.102), (1.13, 0.092), (1.04, 0.08)):
+        ell(p.bm("CucAo", ang=180), (0, y, z), (0.006, 0.004, 0.006), seg=8, rings=5)
     ell(p.bm("Quan", sub=1, ang=180), (0, 0, 0.9), (0.16, 0.11, 0.1), seg=16, rings=10)
     tube(p.bm("Da", sub=1, ang=180), [(0, 0.0, 1.36), (0, 0.012, 1.465)], [0.042, 0.04], ref=(1, 0, 0), seg=12)
-    _head(p, (0, 0.02, 1.55), True, "duoi_ngua")
+    _head(p, (0, 0.02, 1.55), True, "dai")
     done(p)
     for sx, nm in ((-1, "linh_chan_trai"), (1, "linh_chan_phai")):
         q = Prop(nm)
