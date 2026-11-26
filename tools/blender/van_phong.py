@@ -74,6 +74,9 @@ M = {
     "MatNguoi": mat("MatNguoi", (0.01, 0.008, 0.006), 0.2),
     "Moi": mat("Moi", (0.45, 0.2, 0.16), 0.5),
     "CucAo": mat("CucAo", (0.6, 0.6, 0.58), 0.3),
+    "TocBac": mat("TocBac", (0.1, 0.095, 0.09), 0.6),
+    "GongKinh": mat("GongKinh", (0.02, 0.02, 0.02), 0.3, 0.5),
+    "KinhMat": mat("KinhMat", (0.6, 0.65, 0.7), 0.05, 0.0, 0.18),
 }
 
 
@@ -554,7 +557,7 @@ LEDS = []
 
 
 # ================================================================== NGƯỜI
-def _head(p, c, female=False, hair_style="ngan"):
+def _head(p, c, female=False, hair_style="ngan", toc="Toc", kinh=False):
     c = Vector(c)
     da = p.bm("Da", sub=1, ang=180)
     ell(da, c, (0.08, 0.095, 0.11), seg=20, rings=14)
@@ -563,10 +566,10 @@ def _head(p, c, female=False, hair_style="ngan"):
     for sx in (-1, 1):
         ell(da, c + Vector((sx * 0.08, -0.005, -0.004)), (0.012, 0.022, 0.03), seg=10, rings=6)  # tai
         ell(p.bm("MatNguoi", ang=180), c + Vector((sx * 0.031, 0.083, 0.018)), (0.011, 0.007, 0.0075), seg=10, rings=6)
-        box(p.bm("Toc", ang=60), c + Vector((sx * 0.032, 0.088, 0.04)), (0.03, 0.008, 0.006 if not female else 0.004), rot=(0, sx * -0.12, 0))
+        box(p.bm(toc, ang=60), c + Vector((sx * 0.032, 0.088, 0.04)), (0.03, 0.008, 0.006 if not female else 0.004), rot=(0, sx * -0.12, 0))
     ell(p.bm("Moi", ang=180), c + Vector((0, 0.08, -0.045)), (0.017, 0.007, 0.005), seg=10, rings=6)
     # tóc: vỏ cầu cắt theo chân tóc, làm dày bằng solidify
-    dst = p.bm("Toc", sub=1, solid=0.012, ang=180)
+    dst = p.bm(toc, sub=1, solid=0.012, ang=180)
     vs = ell(dst, (0, 0, 0), (1, 1, 1), seg=24, rings=16)
     kill = []
     for v in vs:
@@ -585,12 +588,26 @@ def _head(p, c, female=False, hair_style="ngan"):
             lim = back
         if z < lim:
             kill.append(v)
+        elif hair_style == "hoi" and z > 0.38 and y > -0.55:
+            kill.append(v)   # hói đỉnh, còn tóc hai bên và sau gáy
     keep = [v for v in vs if v not in set(kill)]
     bmesh.ops.delete(dst, geom=kill, context='VERTS')
     sc = (0.087, 0.104, 0.119) if not female else (0.088, 0.104, 0.12)
     bmesh.ops.transform(dst, matrix=Matrix.Translation(c + Vector((0, -0.004, 0.006))) @ Matrix.Diagonal((*sc, 1.0)), verts=keep)
+    if kinh:
+        gk = p.bm("GongKinh", ang=40)
+        for sx in (-1, 1):
+            cx = c + Vector((sx * 0.032, 0.1, 0.017))
+            for dz in (-0.014, 0.014):
+                box(gk, cx + Vector((0, 0, dz)), (0.036, 0.004, 0.003))
+            for dx in (-0.018, 0.018):
+                box(gk, cx + Vector((dx, 0, 0)), (0.003, 0.004, 0.03))
+            box(gk, c + Vector((sx * 0.07, 0.045, 0.022)), (0.003, 0.11, 0.004), rot=(0.05, 0, sx * 0.12))
+        box(gk, c + Vector((0, 0.102, 0.022)), (0.03, 0.004, 0.003))
+        box(p.bm("KinhMat", ang=5), c + Vector((-0.032, 0.1, 0.017)), (0.034, 0.002, 0.026))
+        box(p.bm("KinhMat", ang=5), c + Vector((0.032, 0.1, 0.017)), (0.034, 0.002, 0.026))
     if hair_style == "dai":
-        tb = p.bm("Toc", sub=1, ang=180)
+        tb = p.bm(toc, sub=1, ang=180)
         tube(tb, [c + Vector((0, -0.05, 0.06)), c + Vector((0, -0.09, -0.06)), c + Vector((0, -0.095, -0.2)), c + Vector((0, -0.085, -0.33))],
              [(0.086, 0.05), (0.095, 0.045), (0.095, 0.035), (0.085, 0.022)], ref=(1, 0, 0), seg=12)
         for sx in (-1, 1):   # hai dải tóc trước vai
@@ -678,14 +695,15 @@ def linh():
 
 
 # ================================================================== chạy
-ban_lam_viec(); ghe_xoay(); tu_sat(); tu_ho_so(); cay_nuoc(); may_in(); dieu_hoa(); bang_trang(); chau_cay(); do_tren_ban()
-phong_vo()
-nguoi_ngoi("nguoi_ngoi_nam", False)
-nguoi_ngoi("nguoi_ngoi_nu", True)
-cang_tay("cang_tay_phai", 1)
-cang_tay("cang_tay_trai", -1)
-linh()
-clear_scene(SC)
-if _WIN and _OLD_SC:
-    _WIN.scene = _OLD_SC
-result = {"log": LOG, "leds": len(LEDS)}
+if not globals().get("VP_NO_RUN", False):
+    ban_lam_viec(); ghe_xoay(); tu_sat(); tu_ho_so(); cay_nuoc(); may_in(); dieu_hoa(); bang_trang(); chau_cay(); do_tren_ban()
+    phong_vo()
+    nguoi_ngoi("nguoi_ngoi_nam", False)
+    nguoi_ngoi("nguoi_ngoi_nu", True)
+    cang_tay("cang_tay_phai", 1)
+    cang_tay("cang_tay_trai", -1)
+    linh()
+    clear_scene(SC)
+    if _WIN and _OLD_SC:
+        _WIN.scene = _OLD_SC
+    result = {"log": LOG, "leds": len(LEDS)}
