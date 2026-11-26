@@ -690,6 +690,43 @@ var linh_walk_cb: Callable = Callable()
 var linh_phase: float = 0.0
 var linh_face_player: bool = false
 var _vp_cache: Dictionary = {}
+## Va chạm dạng hộp cho đồ nội thất (kích thước, tâm) theo toạ độ của model.
+## Dùng hộp thay vì bao lồi: bao lồi của bàn phủ cả vách ngăn/màn hình nên che mất đồ trên bàn
+## (không nhặt được báo cáo) và tạo các mặt dốc làm nhân vật bị kẹt.
+const COL_BOXES: Dictionary = {
+	"ban_lam_viec": [[Vector3(1.4, 0.75, 0.7), Vector3(0, 0.375, 0)], [Vector3(1.42, 1.17, 0.05), Vector3(0, 0.585, -0.36)]],
+	"ghe_xoay": [[Vector3(0.42, 1.0, 0.42), Vector3(0, 0.5, 0)]],
+	"tu_sat": [[Vector3(1.0, 1.83, 0.46), Vector3(0, 0.915, 0)]],
+	"tu_ho_so": [[Vector3(0.47, 1.32, 0.63), Vector3(0, 0.66, 0)]],
+	"cay_nuoc": [[Vector3(0.32, 1.5, 0.32), Vector3(0, 0.75, 0)]],
+	"may_in": [[Vector3(0.62, 1.05, 0.6), Vector3(0, 0.525, 0)]],
+	"chau_cay": [[Vector3(0.34, 0.8, 0.34), Vector3(0, 0.4, 0)]],
+	"bgd_ban": [[Vector3(2.2, 0.75, 0.95), Vector3(0, 0.375, 0)], [Vector3(0.54, 0.74, 1.04), Vector3(-1.4, 0.37, -0.72)]],
+	"bgd_ghe_gd": [[Vector3(0.5, 1.4, 0.5), Vector3(0, 0.7, 0)]],
+	"bgd_ghe_khach": [[Vector3(0.56, 0.9, 0.56), Vector3(0, 0.45, 0)]],
+	"bgd_tu_sach_a": [[Vector3(1.3, 2.3, 0.42), Vector3(0, 1.15, 0)]],
+	"bgd_tu_sach_b": [[Vector3(1.3, 2.3, 0.42), Vector3(0, 1.15, 0)]],
+	"bgd_sofa_3": [[Vector3(2.22, 0.8, 0.86), Vector3(0, 0.4, 0)]],
+	"bgd_sofa_1": [[Vector3(0.98, 0.8, 0.86), Vector3(0, 0.4, 0)]],
+	"bgd_ban_tra": [[Vector3(1.2, 0.43, 0.65), Vector3(0, 0.215, 0)]],
+	"bgd_cay": [[Vector3(0.44, 1.0, 0.44), Vector3(0, 0.5, 0)]],
+}
+
+
+func _model_cols(n: Node3D, name: String, path: String) -> void:
+	if not COL_BOXES.has(name):
+		town.add_model_collision(n, path)
+		return
+	var body: StaticBody3D = StaticBody3D.new()
+	body.set_meta("model", name)
+	for b in COL_BOXES[name]:
+		var cs: CollisionShape3D = CollisionShape3D.new()
+		var sh: BoxShape3D = BoxShape3D.new()
+		sh.size = b[0]
+		cs.shape = sh
+		cs.position = b[1]
+		body.add_child(cs)
+	n.add_child(body)
 
 
 func _vp_tex_mat(tex: String, unshaded: bool) -> StandardMaterial3D:
@@ -768,7 +805,7 @@ func _vp(parent: Node3D, name: String, pos: Vector3, yaw: float = 0.0, collide: 
 	parent.add_child(n)
 	_vp_fix(n, o)
 	if collide:
-		town.add_model_collision(n, path)
+		_model_cols(n, name, path)
 	return n
 
 
@@ -902,7 +939,7 @@ func _build_office() -> void:
 	_vp(root, "bang_trang", Vector3(hw - 0.02, 1.45, -1.3), -PI / 2.0)
 	_vp(root, "dong_ho", Vector3(hw - 0.02, 2.45, 0.6), -PI / 2.0)
 	# bản báo cáo trên bàn nhân vật chính (chỉ nhặt được sau khi chọn "lên sau")
-	office_report = _box(root, Vector3(0.21, 0.012, 0.297), Vector3(-3.47, 0.757, -3.22), Color(0.97, 0.97, 0.94))
+	office_report = _box(root, Vector3(0.21, 0.014, 0.297), Vector3(-3.47, 0.762, -3.22), Color(0.97, 0.97, 0.94))
 	office_report.rotation.y = 0.12
 	_glow(office_report, Color(1.0, 0.97, 0.82))
 	(office_report.get_child(0).material_override as StandardMaterial3D).emission_energy_multiplier = 0.35
@@ -1015,7 +1052,7 @@ func _bgd(parent: Node3D, name: String, pos: Vector3, yaw: float = 0.0, collide:
 	_vp_fix(n, {"screen": "man_hinh_bieu_do"})
 	_bgd_fix(n)
 	if collide:
-		town.add_model_collision(n, path)
+		_model_cols(n, name, path)
 	return n
 
 
