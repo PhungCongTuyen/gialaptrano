@@ -74,7 +74,7 @@ M = {
     "MatNguoi": mat("MatNguoi", (0.01, 0.008, 0.006), 0.2),
     "Moi": mat("Moi", (0.45, 0.2, 0.16), 0.5),
     "CucAo": mat("CucAo", (0.6, 0.6, 0.58), 0.3),
-    "TocBac": mat("TocBac", (0.1, 0.095, 0.09), 0.6),
+    "TocBac": mat("TocBac", (0.16, 0.15, 0.14), 0.6),
     "GongKinh": mat("GongKinh", (0.02, 0.02, 0.02), 0.3, 0.5),
     "KinhMat": mat("KinhMat", (0.6, 0.65, 0.7), 0.05, 0.0, 0.18),
 }
@@ -588,7 +588,7 @@ def _head(p, c, female=False, hair_style="ngan", toc="Toc", kinh=False):
             lim = back
         if z < lim:
             kill.append(v)
-        elif hair_style == "hoi" and z > 0.38 and y > -0.55:
+        elif hair_style == "hoi" and z > 0.6 and y > -0.35:
             kill.append(v)   # hói đỉnh, còn tóc hai bên và sau gáy
     keep = [v for v in vs if v not in set(kill)]
     bmesh.ops.delete(dst, geom=kill, context='VERTS')

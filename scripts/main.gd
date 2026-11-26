@@ -996,17 +996,159 @@ func _build_office_simple(root: Node3D) -> void:
 	linh.visible = false
 
 
+# ---------------------------------------------------------------------- phòng giám đốc (intro)
+# Dựng trong Blender: tools/blender/phong_giam_doc.py -> models/phong_giam_doc/*.glb
+# Texture: tools/tao_texture_phong_giam_doc.py -> textures/phong_giam_doc/*.png
+const BGD: String = "res://models/phong_giam_doc/"
+const BGD_TEX: String = "res://textures/phong_giam_doc/"
+var boss_head: Node3D
+
+
+func _bgd(parent: Node3D, name: String, pos: Vector3, yaw: float = 0.0, collide: bool = false) -> Node3D:
+	var path: String = BGD + name + ".glb"
+	if not ResourceLoader.exists(path):
+		return null
+	var n: Node3D = (load(path) as PackedScene).instantiate()
+	n.position = pos
+	n.rotation.y = yaw
+	parent.add_child(n)
+	_vp_fix(n, {"screen": "man_hinh_bieu_do"})
+	_bgd_fix(n)
+	if collide:
+		town.add_model_collision(n, path)
+	return n
+
+
+## Texture riêng của phòng giám đốc (vân gỗ óc chó, tranh, biển tên, bằng khen, thảm).
+func _bgd_fix(n: Node) -> void:
+	for node in n.find_children("*", "MeshInstance3D", true, false):
+		var mi: MeshInstance3D = node
+		for i in mi.mesh.get_surface_count():
+			var m: Material = mi.mesh.surface_get_material(i)
+			if m == null:
+				continue
+			var key: String = ""
+			match m.resource_name:
+				"GoOc":
+					key = "van_go_oc"
+				"TranhSonThuy":
+					key = "tranh_son_thuy"
+				"BangTen":
+					key = "bang_ten"
+				"BangKhen":
+					key = "bang_khen"
+				"ThamTrai":
+					key = "tham_trai"
+			if key == "":
+				continue
+			if not _vp_cache.has("bgd_" + key):
+				var t: StandardMaterial3D = StandardMaterial3D.new()
+				if ResourceLoader.exists(BGD_TEX + key + ".png"):
+					t.albedo_texture = load(BGD_TEX + key + ".png")
+				t.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+				if key == "van_go_oc":
+					t.uv1_triplanar = true
+					t.uv1_scale = Vector3(1.6, 1.6, 1.6)
+					t.roughness = 0.38
+					t.albedo_color = Color(0.62, 0.55, 0.5)
+				else:
+					t.cull_mode = BaseMaterial3D.CULL_DISABLED
+					t.roughness = 0.6 if key != "bang_ten" else 0.3
+				_vp_cache["bgd_" + key] = t
+			mi.set_surface_override_material(i, _vp_cache["bgd_" + key])
+
+
 func _build_boss_room() -> void:
 	var root: Node3D = Node3D.new()
 	root.position = BOSS_ORIGIN
 	add_child(root)
-	_shell(root, BOSS_SIZE, Color(0.55, 0.42, 0.32), Color(0.25, 0.12, 0.12))
-	_box(root, Vector3(3.0, 0.8, 1.2), Vector3(0, 0.4, -1.5), Color(0.28, 0.17, 0.1))
-	boss_paper = _box(root, Vector3(0.5, 0.04, 0.36), Vector3(0, 0.82, -1.15), Color(0.97, 0.97, 0.9))
-	_glow(boss_paper, Color(1.0, 0.95, 0.6))
+	if not ResourceLoader.exists(BGD + "bgd_phong.glb"):
+		_shell(root, BOSS_SIZE, Color(0.55, 0.42, 0.32), Color(0.25, 0.12, 0.12))
+		_box(root, Vector3(3.0, 0.8, 1.2), Vector3(0, 0.4, -1.5), Color(0.28, 0.17, 0.1))
+		boss_paper = _box(root, Vector3(0.5, 0.04, 0.36), Vector3(0, 0.82, -1.15), Color(0.97, 0.97, 0.9))
+		_glow(boss_paper, Color(1.0, 0.95, 0.6))
+		_mark(boss_paper, "paper", "Nhận giấy cho nghỉ việc")
+		boss_paper.remove_meta("interact")
+		_person(root, Vector3(0, 0.8, -2.45), Color(0.2, 0.2, 0.28), "Giám đốc")
+		return
+	var hw: float = BOSS_SIZE.x / 2.0
+	var hd: float = BOSS_SIZE.z / 2.0
+	# sàn gỗ
+	var fl: StaticBody3D = _box(root, Vector3(BOSS_SIZE.x + 0.3, 0.2, BOSS_SIZE.z + 0.3), Vector3(0, -0.1, 0), Color(0.5, 0.4, 0.3))
+	var fm: StandardMaterial3D = StandardMaterial3D.new()
+	if ResourceLoader.exists(BGD_TEX + "san_go.png"):
+		fm.albedo_texture = load(BGD_TEX + "san_go.png")
+	fm.uv1_triplanar = true
+	fm.uv1_world_triplanar = true
+	fm.uv1_scale = Vector3(0.5, 0.5, 0.5)
+	fm.roughness = 0.45
+	fm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	(fl.get_child(0) as MeshInstance3D).material_override = fm
+	_bgd(root, "bgd_phong", Vector3.ZERO)
+	_vp_col(root, Vector3(BOSS_SIZE.x + 1, 4, 0.3), Vector3(0, 2, -hd - 0.15))
+	_vp_col(root, Vector3(BOSS_SIZE.x + 1, 4, 0.3), Vector3(0, 2, hd + 0.15))
+	_vp_col(root, Vector3(0.3, 4, BOSS_SIZE.z + 1), Vector3(-hw - 0.15, 2, 0))
+	_vp_col(root, Vector3(0.3, 4, BOSS_SIZE.z + 1), Vector3(hw + 0.15, 2, 0))
+	var roof: MeshInstance3D = MeshInstance3D.new()
+	var rb: BoxMesh = BoxMesh.new()
+	rb.size = Vector3(BOSS_SIZE.x + 0.6, 0.3, BOSS_SIZE.z + 0.6)
+	roof.mesh = rb
+	roof.position = Vector3(0, BOSS_SIZE.y + 0.2, 0)
+	roof.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+	root.add_child(roof)
+	# ánh sáng vàng ấm
+	for lp in [[Vector3(0, 2.55, -1.2), 0.55, true], [Vector3(-2.5, 2.55, 0.8), 0.4, false], [Vector3(2.2, 2.55, 1.6), 0.35, false]]:
+		var l: OmniLight3D = OmniLight3D.new()
+		l.position = lp[0]
+		l.light_energy = lp[1]
+		l.omni_range = 6.0
+		l.omni_attenuation = 0.8
+		l.light_color = Color(1.0, 0.88, 0.72)
+		l.shadow_enabled = lp[2]
+		root.add_child(l)
+	# bàn, ghế giám đốc, 2 ghế khách
+	_bgd(root, "bgd_ban", Vector3(0, 0, -1.35), 0.0, true)
+	_bgd(root, "bgd_ghe_gd", Vector3(0, 0, -2.2), PI, true)
+	_bgd(root, "bgd_ghe_khach", Vector3(-0.6, 0, -0.3), 0.15, true)
+	_bgd(root, "bgd_ghe_khach", Vector3(0.6, 0, -0.3), -0.15, true)
+	# tủ sách hai bên mảng ốp gỗ
+	_bgd(root, "bgd_tu_sach_b", Vector3(-3.27, 0, -hd + 0.22), 0.0, true)
+	_bgd(root, "bgd_tu_sach_a", Vector3(-1.95, 0, -hd + 0.22), 0.0, true)
+	_bgd(root, "bgd_tu_sach_a", Vector3(1.95, 0, -hd + 0.22), 0.0, true)
+	_bgd(root, "bgd_tu_sach_b", Vector3(3.27, 0, -hd + 0.22), 0.0, true)
+	# góc tiếp khách: thảm, sofa, bàn trà
+	_bgd(root, "bgd_tham", Vector3(-2.6, 0, 0.6))
+	_bgd(root, "bgd_sofa_3", Vector3(-hw + 0.48, 0, 0.6), PI / 2.0, true)
+	_bgd(root, "bgd_ban_tra", Vector3(-2.45, 0, 0.6), PI / 2.0, true)
+	_bgd(root, "bgd_sofa_1", Vector3(-2.45, 0, 2.05), PI, true)
+	_bgd(root, "bgd_cay", Vector3(3.5, 0, 2.5), 0.3, true)
+	_bgd(root, "bgd_cay", Vector3(-3.55, 0, 2.55), 1.9, true)
+	# tường: bằng khen, đồng hồ, điều hòa
+	_bgd(root, "bgd_bang_khen", Vector3(-hw + 0.02, 1.55, 0.15), PI / 2.0)
+	_bgd(root, "bgd_bang_khen", Vector3(-hw + 0.02, 1.55, 1.05), PI / 2.0)
+	_vp(root, "dong_ho", Vector3(-hw + 0.02, 2.25, 0.6), PI / 2.0)
+	_vp(root, "dieu_hoa", Vector3(-hw + 0.115, 2.5, -1.3), PI / 2.0)
+	# giấy cho nghỉ việc trên bàn, phía khách
+	boss_paper = _box(root, Vector3(0.21, 0.006, 0.297), Vector3(-0.35, 0.765, -1.05), Color(0.97, 0.97, 0.94))
+	boss_paper.rotation.y = -0.2
+	_glow(boss_paper, Color(1.0, 0.96, 0.8))
+	(boss_paper.get_child(0).material_override as StandardMaterial3D).emission_energy_multiplier = 0.3
 	_mark(boss_paper, "paper", "Nhận giấy cho nghỉ việc")
 	boss_paper.remove_meta("interact")
-	_person(root, Vector3(0, 0.8, -2.45), Color(0.2, 0.2, 0.28), "Giám đốc")
+	# giám đốc: thân + đầu (gật/ngẩng)
+	var boss: Node3D = _bgd(root, "giam_doc_than", Vector3(0, 0, -2.2), PI)
+	if boss != null:
+		boss_head = _bgd(boss, "giam_doc_dau", Vector3(0, 1.215, -0.055))
+		if boss_head != null:
+			boss_head.rotation.x = -0.38   # đang cúi xem giấy tờ
+
+
+## Giám đốc ngẩng đầu lên nhìn mình.
+func _boss_look_up() -> void:
+	if boss_head == null:
+		return
+	var tw: Tween = create_tween()
+	tw.tween_property(boss_head, "rotation:x", -0.1, 1.1).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
 ## Điểm ngẫu nhiên trên mặt đường (hiện chưa dùng)
@@ -2064,10 +2206,13 @@ func _intro_boss_enter() -> void:
 	linh.visible = false
 	player.hold_document("")  # để báo cáo lên bàn giám đốc
 	player.teleport(BOSS_ORIGIN + Vector3(0, 1.0, 1.2), 0.0)
+	if boss_head != null:
+		boss_head.rotation.x = -0.38
 	_say("PHÒNG GIÁM ĐỐC", "Căn phòng im lặng đến mức nghe rõ tiếng điều hòa. Giám đốc ngồi sau bàn, chưa ngẩng đầu lên ngay.", _intro_boss_1, "intro_07")
 
 
 func _intro_boss_1() -> void:
+	_boss_look_up()
 	if intro_took_report:
 		_say("Giám đốc", "Ngồi đi. Tôi sẽ nói thẳng, vì tôi biết cậu không thích vòng vo. Báo cáo cậu cứ để đó, có lẽ cũng không cần đọc nữa.", _intro_boss_2, "intro_08b")
 	else:
